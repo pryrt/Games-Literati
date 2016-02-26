@@ -4,3 +4,23 @@ Revision history for Perl extension Games::Literati.
 	- original version; created by h2xs 1.21 with options
 		-AXcfn Games::Literati
 
+0.02  Private (pryrt)
+	- Add $WordFile to customize path to dictionary 
+		<https://rt.cpan.org/Ticket/Display.html?id=112378>
+	- separate input() out from search() to keep the functions distinct 
+		<https://rt.cpan.org/Ticket/Display.html?id=112379>
+
+0.021 Private (pryrt)
+	- Add wordswithfriends() 
+		<https://rt.cpan.org/Ticket/Display.html?id=112381>
+	
+0.03  Thu Feb 25 17:00:00 2016
+	- Replace hardcoded "Scrabble/Literati" printed title with our $GameName-dependent text
+	- Sprinkle comments throughout the code, to help me understand and debug it better
+	- Update/expand POD documentation
+	- BUGFIX: change the "cross-word" scoring (if you lay down a horizontal set of tiles, 
+	  the "cross-words" are any vertical words that are created) to check the wilds under 
+	  new tiles in the cross-word don't get scored, but that new tiles that are part of the 
+	  cross-word are scored (and include bonuses) = fixed the array indexing in the unless 
+	  (wild), and fixed the logic so if it's not wild, it does score.
+	  	<https://rt.cpan.org/Ticket/Display.html?id=29539>
