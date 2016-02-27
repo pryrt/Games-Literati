@@ -8,7 +8,7 @@ require Exporter;
 our @ISA        = qw( Exporter );
 our @EXPORT_OK  = qw( find %valid scrabble literati wordswithfriends $WordFile );
 
-our $VERSION = 0.03;
+our $VERSION = 0.031;
 our %valid = ();
 our @bonus;
 our @onboard;
@@ -334,7 +334,7 @@ sub search {
     for my $key (sort {$solutions{$b} <=> $solutions{$a}} keys %solutions) {
         last if ++$best > 10;
 
-        print "Possible Ten Best Solution $best: $key, score $solutions{$key}\n";
+        print "Possible Top Ten Solution $best: $key, score $solutions{$key}\n";
 
     }
 
@@ -390,7 +390,7 @@ sub _mathwork {
                 next if $column > 15;       # next starting-col if this column has extended beyond the board
                 next unless $go_on == 1;    # next starting-col if we determined that we should stop this attempt
 
-               # if we made it here, there's enough room for a word of length==$use;
+                # if we made it here, there's enough room for a word of length==$use;
                 # we have a string that's comprised of
                 #   . dots indicating empty spots on the board
                 #   / slashes indicating empty spots that we will fill with our new tiles
@@ -459,6 +459,7 @@ sub _mathwork {
                                     # BUGFIX (pcj): use vrow as the row of the current letter of the vertical word
                                     #   if it's a wild, 0 points, else add its non-bonus value
                                     my $vrow = $vstart + pos() - 1;    # vstart is the start of the vertical word; pos is the 1-based position in the vertical word; -1 adjusts for the 1-based to get the row of the current \w character $1
+                                    my ($wr,$wc) = ($rotate) ? ($vrow, $c) : ($c, $vrow);  # swap row and column for wilds[][] array, since wilds[][] wasn't transposed.
 
                                     unless ( $wilds[$vrow][$c] ) {
                                         $t_score += $values{$1};
@@ -504,7 +505,7 @@ sub _mathwork {
 
                         # this is the scoring for the word I just laid down
                         for (split //, $trying) {
-                            if ($onboard[$row][$col+$col_index] eq '.') {
+                            if ($onboard[$row][$col+$col_index] eq '.') {           # if new tile
                                 if ($bonus[$row][$col+$col_index] eq "TL") {
                                     $t_score += $values[$cc] * 3;
                                 }
@@ -514,7 +515,6 @@ sub _mathwork {
                                 elsif ($bonus[$row][$col+$col_index] eq "DW") {
                                     $t_score += $values[$cc];
                                     $t_flag .=  "*2";
-
                                 }
                                 elsif ($bonus[$row][$col+$col_index] eq "TW") {
                                     $t_score += $values[$cc];
@@ -523,14 +523,14 @@ sub _mathwork {
                                 else {
                                     $t_score += $values[$cc];
                                 }
-
-
-                            }
-                            else {
-                                unless ($wilds[$row][$col+$col_index]) {
+                            } # end if new tile
+                            else { # else tile already there
+                                my ($wr, $wc) = ($row, $col + $col_index);
+                                ($wc, $wr) = ($wr, $wc) if $rotate; # swap row and column for wilds[][] array, since wilds[][] wasn't transposed.
+                                unless ($wilds[$wr][$wc]) {
                                     $t_score += $values{$_};
                                 }
-                            }
+                            } # end else already a tile there
                             $cc ++;
                             $col_index ++;
                         } # foreach split trying
@@ -692,6 +692,24 @@ sub _literati_init {
 sub _wordswithfriends_init {
 
     $GameName = "Words With Friends";
+
+    #  0   1   2   3   4   5   6   7   8   9   10  11  12  13  14
+    # [__][__][__][TW][__][__][TL][__][TL][__][__][TW][__][__][__] 0
+    # [__][__][DL][__][__][DW][__][__][__][DW][__][__][DL][__][__] 1
+    # [__][DL][__][__][DL][__][__][__][__][__][DL][__][__][DL][__] 2
+    # [TW][__][__][TL][__][__][__][DW][__][__][__][TL][__][__][TW] 3
+    # [__][__][DL][__][__][__][DL][__][DL][__][__][__][DL][__][__] 4
+    # [__][DW][__][__][__][TL][__][__][__][TL][__][__][__][DW][__] 5
+    # [TL][__][__][__][DL][__][__][__][__][__][DL][__][__][__][TL] 6
+    # [__][__][__][DW][__][__][__][__][__][__][__][DW][__][__][__] 7
+    # [TL][__][__][__][DL][__][__][__][__][__][DL][__][__][__][TL] 8
+    # [__][DW][__][__][__][TL][__][__][__][TL][__][__][__][DW][__] 9
+    # [__][__][DL][__][__][__][DL][__][DL][__][__][__][DL][__][__] 10
+    # [TW][__][__][TL][__][__][__][DW][__][__][__][TL][__][__][TW] 11
+    # [__][DL][__][__][DL][__][__][__][__][__][DL][__][__][DL][__] 12
+    # [__][__][DL][__][__][DW][__][__][__][DW][__][__][DL][__][__] 13
+    # [__][__][__][TW][__][__][TL][__][TL][__][__][TW][__][__][__] 14
+
 
     $bonus[0][3]   = 'TW';
     $bonus[0][6]   = 'TL';
