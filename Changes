@@ -24,3 +24,11 @@ Revision history for Perl extension Games::Literati.
 	  cross-word are scored (and include bonuses) = fixed the array indexing in the unless 
 	  (wild), and fixed the logic so if it's not wild, it does score.
 	  	<https://rt.cpan.org/Ticket/Display.html?id=29539>
+
+0.031  Sat Feb 27 15:15:00 2016
+	- Fix scoring bug -- wilds weren't getting rotated when the rest of the board was, so 
+	  for Y-axis words, it was scoring too much if there was a wild already on the board as 
+	  part of the new word.  (Found while playing Words With Friends: real game scored 2 
+	  points less than Games::Literati::wordswithfriends() because a two-point letter was 
+	  really a wild, but G::L::wwf didn't notice.)  FIX = Swap row/col during wilds 
+	  comparison.  
