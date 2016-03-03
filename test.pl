@@ -15,5 +15,7 @@ ok(1); # If we made it this far, we're ok.
 # Insert your test code below, the Test module is use()ed here so read
 # its man page ( perldoc Test ) for help writing this test script.
 
-print "Please remember to get a wordlist and put it your working directory! 
-Send me email if you don't have one.\n";
+print "
+Please remember to get a wordlist and put it your working directory!
+If you don't have one, see 'perldoc Games::Literati' for possible sources.
+";

@@ -685,7 +685,7 @@ sub _literati_init {
         x=>5,
         y=>3,
         z=>5
-               );
+    );
 
 }
 
@@ -821,7 +821,7 @@ sub _wordswithfriends_init {
         x=>8,
         y=>3,
         z=>10
-               );
+    );
 
 }
 1;
@@ -831,7 +831,7 @@ sub _wordswithfriends_init {
 
 =head1 NAME
 
-Games::Literati - Literati resolver
+Games::Literati - Resolves a turn of Literati (or Scrabble, or Words With Friends, or similar word-tile games)
 
 =head1 SYNOPSIS
 
@@ -1292,5 +1292,3 @@ Copyright (c) 2003, Chicheng Zhang.  Copyright (C) 2016 by Peter C. Jones
 This is free software; you can redistribute it and/or modify it under the same terms as the Perl 5 programming language system itself.
 
 =cut
-
-
