@@ -1,5 +1,5 @@
 package Games::Literati;
-
+use warnings;
 use strict;
 use Carp;
 
@@ -8,7 +8,7 @@ require Exporter;
 our @ISA        = qw( Exporter );
 our @EXPORT_OK  = qw( find %valid scrabble literati wordswithfriends $WordFile );
 
-our $VERSION = 0.031;
+our $VERSION = 0.032;
 our %valid = ();
 our @bonus;
 our @onboard;
@@ -44,6 +44,16 @@ sub wordswithfriends {
 sub _var_init {
     open (my $fh, $WordFile ) || croak "Can not open words file \"$WordFile\"\n\t$!";
 
+# v0.031001
+    %values = ();
+    undef $words;
+    foreach my $r (0..14) {
+        foreach my $c (0..14) {
+            undef $bonus[$r][$c];
+        }
+    }
+# end v0.031001
+
     print "Hashing words...\n";
     while (<$fh>) {
         chomp;
@@ -54,9 +64,8 @@ sub _var_init {
 }
 
 sub check {
-    no warnings;
-    my @words    = @{ pop @_ };
-    for my $w (@words) {
+    my @wordlist    = @{ pop @_ };
+    for my $w (@wordlist) {
         if ($valid{$w} == 1) {
             print qq|"$w" is valid.\n|;
         }
@@ -831,7 +840,7 @@ sub _wordswithfriends_init {
 
 =head1 NAME
 
-Games::Literati - Resolves a turn of Literati (or Scrabble, or Words With Friends, or similar word-tile games)
+Games::Literati - For word games like Literati (or Scrabble, or Words With Friends), find the best-scoring solution(s) for a board and hand of tiles.
 
 =head1 SYNOPSIS
 
@@ -1285,7 +1294,7 @@ Chicheng Zhang C<E<lt>chichengzhang AT hotmail.comE<gt>> wrote the original code
 Peter C. Jones C<E<lt>petercj AT cpan.orgE<gt>> has added various feature
 and made bug fixes.
 
-=head1 COPYRIGHT AND LICENSE
+=head1 LICENSE AND COPYRIGHT
 
 Copyright (c) 2003, Chicheng Zhang.  Copyright (C) 2016 by Peter C. Jones
 

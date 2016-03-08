@@ -3,4 +3,7 @@ Literati.pm
 Makefile.PL
 MANIFEST
 README
-test.pl
+t/import_wordlist.t
+t/score_games.t
+t/wordlist
+t/wordlist.2
