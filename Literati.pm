@@ -6,9 +6,9 @@ use Carp;
 require Exporter;
 
 our @ISA        = qw( Exporter );
-our @EXPORT_OK  = qw( find %valid scrabble literati wordswithfriends $WordFile );
+our @EXPORT_OK  = qw( find %valid scrabble literati wordswithfriends $WordFile $BoardCols $BoardRows );
 
-our $VERSION = 0.032;
+our $VERSION = 0.032001;
 our %valid = ();
 our @bonus;
 our @onboard;
@@ -19,40 +19,52 @@ our $bingo_bonus;
 our @wilds;
 our $WordFile = './wordlist';
 our $GameName = '';
+our $BoardCols = 15;    # v0.032001
+our $BoardRows = 15;    # v0.032001
 
 sub scrabble {
-    _var_init();
-    _init();
+    _var_init(15,15);
+    _scrabble_init();
     display();
     search(shift, shift);
 }
 
 sub literati {
-    _var_init();
+    _var_init(15,15);
     _literati_init();
     display();
     search(shift, shift);
 }
 
 sub wordswithfriends {
-    _var_init();
+    _var_init(15,15);
     _wordswithfriends_init();
     display();
     search(shift, shift);
 }
 
+sub set_rows($) { $BoardRows = shift if defined $_[0]; }
+sub set_cols($) { $BoardCols = shift if defined $_[0]; }
+sub _n_cols() { return $BoardCols; }
+sub _n_rows() { return $BoardRows; }
+sub _max_col() { return $BoardCols-1; }
+sub _max_row() { return $BoardRows-1; }
+
 sub _var_init {
+    set_rows($_[0]) if (defined $_[0]);
+    set_rows($_[1]) if (defined $_[1]);
+
     open (my $fh, $WordFile ) || croak "Can not open words file \"$WordFile\"\n\t$!";
 
-# v0.031001
     %values = ();
     undef $words;
-    foreach my $r (0..14) {
-        foreach my $c (0..14) {
+    undef @bonus;
+
+    foreach my $r (0.._max_row) {
+        foreach my $c (0.._max_col) {
             undef $bonus[$r][$c];
         }
     }
-# end v0.031001
 
     print "Hashing words...\n";
     while (<$fh>) {
@@ -140,128 +152,14 @@ sub _find {
     return \@results;
 }
 
-sub _init {
-
-    $GameName = "Scrabble";
-
-    $bonus[0][0]   = "TW";
-    $bonus[0][7]   = "TW";
-    $bonus[0][14]  = "TW";
-    $bonus[7][0]   = "TW";
-    $bonus[7][14]  = "TW";
-    $bonus[14][0]  = "TW";
-    $bonus[14][7]  = "TW";
-    $bonus[14][14] = "TW";
-
-    $bonus[1][1]   = "DW";
-    $bonus[1][13]  = "DW";
-    $bonus[2][2]   = "DW";
-    $bonus[2][12]  = "DW";
-    $bonus[3][3]   = "DW";
-    $bonus[3][11]  = "DW";
-    $bonus[4][4]   = "DW";
-    $bonus[4][10]  = "DW";
-    $bonus[7][7]   = "DW";
-    $bonus[10][4]  = "DW";
-    $bonus[10][10] = "DW";
-    $bonus[11][3]  = "DW";
-    $bonus[11][11] = "DW";
-    $bonus[12][2]  = "DW";
-    $bonus[12][12] = "DW";
-    $bonus[13][1]  = "DW";
-    $bonus[13][13] = "DW";
-
-    $bonus[0][3]   = "DL";
-    $bonus[0][11]  = "DL";
-    $bonus[2][6]   = "DL";
-    $bonus[2][8]   = "DL";
-    $bonus[3][0]   = "DL";
-    $bonus[3][7]   = "DL";
-    $bonus[3][14]  = "DL";
-    $bonus[6][2]   = "DL";
-    $bonus[6][6]   = "DL";
-    $bonus[6][8]   = "DL";
-    $bonus[6][12]  = "DL";
-    $bonus[7][3]   = "DL";
-    $bonus[7][11]  = "DL";
-    $bonus[8][2]   = "DL";
-    $bonus[8][6]   = "DL";
-    $bonus[8][8]   = "DL";
-    $bonus[8][12]  = "DL";
-    $bonus[11][0]  = "DL";
-    $bonus[11][7]  = "DL";
-    $bonus[11][14] = "DL";
-    $bonus[12][6]  = "DL";
-    $bonus[12][8]  = "DL";
-    $bonus[14][3]  = "DL";
-    $bonus[14][11] = "DL";
-
-    $bonus[1][5]   = "TL";
-    $bonus[1][9]   = "TL";
-    $bonus[5][1]   = "TL";
-    $bonus[5][5]   = "TL";
-    $bonus[5][9]   = "TL";
-    $bonus[5][13]  = "TL";
-    $bonus[9][1]   = "TL";
-    $bonus[9][5]   = "TL";
-    $bonus[9][9]   = "TL";
-    $bonus[9][13]  = "TL";
-    $bonus[13][5]  = "TL";
-    $bonus[13][9]  = "TL";
-
-    for my $row (0..14) {
-        for my $col (0..14) {
-            $onboard[$row][$col] = '.';
-        }
-    }
-    # FEATURE REQ = change hardcoded 14 and 15 thruout to the appropriate configuration variables ($BOARD_ROWS and $BOARD_COLS or similar) to be able to play super-scrabble
-    # replace 15 with
-    #   BOARD_NROWS = 15
-    #   BOARD_NCOLS = 15
-    # replace 14 with
-    #   BOARD_LASTROW_IDX = BOARD_NROWS-1
-    #   BOARD_LASTCOL_IDX = BOARD_NCOLS-1
-    # make sure it happens thrughout the code, not just in scrabble_init
-
-    %values = (
-        a=>1,
-        b=>3,
-        c=>3,
-        d=>2,
-        e=>1,
-        f=>4,
-        g=>2,
-        h=>4,
-        i=>1,
-        j=>8,
-        k=>5,
-        l=>1,
-        m=>3,
-        n=>1,
-        o=>1,
-        p=>3,
-        q=>10,
-        r=>1,
-        s=>1,
-        t=>1,
-        u=>1,
-        v=>4,
-        w=>4,
-        x=>8,
-        y=>4,
-        z=>10
-               );
-    $bingo_bonus = 50;
-}
-
 sub display {
     my $f = shift;
     my ($t, $r, $c) = @_;
 
     print "\nBoard:\n";
-    for my $row (0..14) {
+    for my $row (0.._max_row) {
         print sprintf "%02d ", $row if $f;
-        for my $col (0..14) {
+        for my $col (0.._max_col) {
             $onboard[$row][$col] ||= '.';
             print $onboard[$row][$col];
         }
@@ -276,12 +174,12 @@ sub input {
     my $input;
 
   INPUT:
-    for my $row (0..14) {
+    for my $row (0.._max_row) {
         print "row $row:\n";
         $input = <STDIN>;
         chomp $input;
-        if (length($input) > 15) {
-            print "over board!\n";
+        if (length($input) > _n_cols) {
+            printf "over board: %d columns is more than %d\n", length($input), _n_cols;
             goto INPUT;
         }
 
@@ -365,8 +263,8 @@ sub _mathwork {
     while ($use >= $use_min) {
         print "using $use tiles:\n";
 
-        for my $row (0..14) {
-            for my $col (0..15-$use) {
+        for my $row (0.._max_row) {
+            for my $col (0.._n_rows-$use) {
                 next if $onboard[$row][$col] ne '.';    # skip populated tiles
                 $go_on = 0;
                 $actual_letters = $letters;
@@ -377,16 +275,16 @@ sub _mathwork {
 
                 # make sure that number of letters (count=use) will fit on the board
                 while ($count) {
-                    if ($column > 14) {$go_on = 0; last};
+                    if ($column > _max_col) {$go_on = 0; last};
 
                     unless ($go_on) {
                         if (
                             $onboard[$row][$col] ne '.'   ||
-                            ($column > 0  && $onboard[$row][$column-1] ne '.')  ||
-                            ($column < 14 && $onboard[$row][$column+1] ne '.')  ||
-                            ($row > 0     && $onboard[$row-1][$column] ne '.')  ||
-                            ($row < 14    && $onboard[$row+1][$column] ne '.')  ||
-                            ($row == 7    && $column == 7)) {
+                            ($column > 0        && $onboard[$row][$column-1] ne '.')  ||
+                            ($column < _max_col && $onboard[$row][$column+1] ne '.')  ||
+                            ($row > 0           && $onboard[$row-1][$column] ne '.')  ||
+                            ($row < _max_row    && $onboard[$row+1][$column] ne '.')  ||
+                            ($row == 7    && $column == 7)) {   # TODO = this last condition is only valid on 15x15 with 7 tiles
                             $go_on = 1;
                         }
                     }
@@ -396,7 +294,7 @@ sub _mathwork {
                     }
                     $column ++;
                 } # $count down to 0
-                next if $column > 15;       # next starting-col if this column has extended beyond the board
+                next if $column > _n_cols;  # next starting-col if this column has extended beyond the board
                 next unless $go_on == 1;    # next starting-col if we determined that we should stop this attempt
 
                 # if we made it here, there's enough room for a word of length==$use;
@@ -442,7 +340,7 @@ sub _mathwork {
 
                             # build up the full column-string one character at a time (vertical slice of the board)
                             # this will allow us to check for words that cross with our attempted word
-                            for my $r (0..14) {
+                            for my $r (0.._max_row) {
                                 if ($r == $row) {       # if it's the current row, use the replacement character rather than the '.' that's in the real board
                                     $str    .= substr ($record, $index, 1);
                                     $replace = substr ($trying, $index, 1);     # this is the character from $trying that is taking the place of the slash for this column
@@ -572,12 +470,122 @@ sub _mathwork {
 
 sub _rotate_board {
 
-    for my $row (0..13)  {
-        for my $col ($row+1..14) {
-
+    for my $row (0..(_max_row-1))  {
+        for my $col ($row+1.._max_col) {
             ($onboard[$col][$row], $onboard[$row][$col]) = ($onboard[$row][$col], $onboard[$col][$row]);
         }
     }
+    ($BoardRows, $BoardCols) = ($BoardCols, $BoardRows);
+}
+
+sub _init {
+    _scrabble_init();
+}
+
+sub _scrabble_init {
+
+    $GameName = "Scrabble";
+
+    $bonus[0][0]   = "TW";
+    $bonus[0][7]   = "TW";
+    $bonus[0][14]  = "TW";
+    $bonus[7][0]   = "TW";
+    $bonus[7][14]  = "TW";
+    $bonus[14][0]  = "TW";
+    $bonus[14][7]  = "TW";
+    $bonus[14][14] = "TW";
+
+    $bonus[1][1]   = "DW";
+    $bonus[1][13]  = "DW";
+    $bonus[2][2]   = "DW";
+    $bonus[2][12]  = "DW";
+    $bonus[3][3]   = "DW";
+    $bonus[3][11]  = "DW";
+    $bonus[4][4]   = "DW";
+    $bonus[4][10]  = "DW";
+    $bonus[7][7]   = "DW";
+    $bonus[10][4]  = "DW";
+    $bonus[10][10] = "DW";
+    $bonus[11][3]  = "DW";
+    $bonus[11][11] = "DW";
+    $bonus[12][2]  = "DW";
+    $bonus[12][12] = "DW";
+    $bonus[13][1]  = "DW";
+    $bonus[13][13] = "DW";
+
+    $bonus[0][3]   = "DL";
+    $bonus[0][11]  = "DL";
+    $bonus[2][6]   = "DL";
+    $bonus[2][8]   = "DL";
+    $bonus[3][0]   = "DL";
+    $bonus[3][7]   = "DL";
+    $bonus[3][14]  = "DL";
+    $bonus[6][2]   = "DL";
+    $bonus[6][6]   = "DL";
+    $bonus[6][8]   = "DL";
+    $bonus[6][12]  = "DL";
+    $bonus[7][3]   = "DL";
+    $bonus[7][11]  = "DL";
+    $bonus[8][2]   = "DL";
+    $bonus[8][6]   = "DL";
+    $bonus[8][8]   = "DL";
+    $bonus[8][12]  = "DL";
+    $bonus[11][0]  = "DL";
+    $bonus[11][7]  = "DL";
+    $bonus[11][14] = "DL";
+    $bonus[12][6]  = "DL";
+    $bonus[12][8]  = "DL";
+    $bonus[14][3]  = "DL";
+    $bonus[14][11] = "DL";
+
+    $bonus[1][5]   = "TL";
+    $bonus[1][9]   = "TL";
+    $bonus[5][1]   = "TL";
+    $bonus[5][5]   = "TL";
+    $bonus[5][9]   = "TL";
+    $bonus[5][13]  = "TL";
+    $bonus[9][1]   = "TL";
+    $bonus[9][5]   = "TL";
+    $bonus[9][9]   = "TL";
+    $bonus[9][13]  = "TL";
+    $bonus[13][5]  = "TL";
+    $bonus[13][9]  = "TL";
+
+    for my $row (0.._max_row) {
+        for my $col (0.._max_col) {
+            $onboard[$row][$col] = '.';
+        }
+    }
+
+    %values = (
+        a=>1,
+        b=>3,
+        c=>3,
+        d=>2,
+        e=>1,
+        f=>4,
+        g=>2,
+        h=>4,
+        i=>1,
+        j=>8,
+        k=>5,
+        l=>1,
+        m=>3,
+        n=>1,
+        o=>1,
+        p=>3,
+        q=>10,
+        r=>1,
+        s=>1,
+        t=>1,
+        u=>1,
+        v=>4,
+        w=>4,
+        x=>8,
+        y=>4,
+        z=>10
+               );
+    $bingo_bonus = 50;
 }
 
 sub _literati_init {
@@ -661,8 +669,8 @@ sub _literati_init {
 
     $bingo_bonus   = 35;
 
-    for my $row (0..14) {
-        for my $col (0..14) {
+    for my $row (0.._max_row) {
+        for my $col (0.._max_col) {
             $onboard[$row][$col] = '.';
         }
     }
@@ -797,8 +805,8 @@ sub _wordswithfriends_init {
 
     $bingo_bonus   = 35;
 
-    for my $row (0..14) {
-        for my $col (0..14) {
+    for my $row (0.._max_row) {
+        for my $col (0.._max_row) {
             $onboard[$row][$col] = '.';
         }
     }

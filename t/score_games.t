@@ -6,12 +6,12 @@
 #	"STDOUT" and "STDERR"' section soon thereafter
 ########################################################################
 # Subversion Info
-#       $Author: pryrtmx $
-#       $Date: 2016-03-07 14:37:10 -0800 (Mon, 07 Mar 2016) $
-#       $Revision: 105 $
+#       $Author: pryrt $
+#       $Date: 2016-03-21 18:12:21 -0700 (Mon, 21 Mar 2016) $
+#       $Revision: 116 $
 #       $URL: https://subversion.assembla.com/svn/pryrt/trunk/perl/Literati/t/score_games.t $
-#       $Header: https://subversion.assembla.com/svn/pryrt/trunk/perl/Literati/t/score_games.t 105 2016-03-07 22:37:10Z pryrtmx $
-#       $Id: score_games.t 105 2016-03-07 22:37:10Z pryrtmx $
+#       $Header: https://subversion.assembla.com/svn/pryrt/trunk/perl/Literati/t/score_games.t 116 2016-03-22 01:12:21Z pryrt $
+#       $Id: score_games.t 116 2016-03-22 01:12:21Z pryrt $
 ########################################################################
 
 use 5.8.0;
