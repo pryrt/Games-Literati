@@ -3,12 +3,25 @@ use warnings;
 use strict;
 use Carp;
 
+use 5.006;
 require Exporter;
 
-our @ISA        = qw( Exporter );
-our @EXPORT_OK  = qw( find %valid scrabble literati wordswithfriends $WordFile $BoardCols $BoardRows );
+our @ISA            = qw(Exporter);
+our @EXPORT_GAMES   = qw(scrabble superscrabble literati wordswithfriends);
+our @EXPORT_CONFIG  = qw($WordFile $MinimumWordLength);
+our @EXPORT_OTHER   = qw(find %valid);
+our @EXPORT_INFO    = qw(n_rows n_cols numTilesPerHand);
+our @EXPORT_CUSTOMIZER  = (@EXPORT_INFO, 'var_init');
+our @EXPORT_OK      = (@EXPORT_GAMES, @EXPORT_CONFIG, @EXPORT_OTHER, @EXPORT_INFO, @EXPORT_CUSTOMIZER);
+our %EXPORT_TAGS    = (
+    'allGames'      => [@EXPORT_GAMES],
+    'configGame'    => [@EXPORT_CONFIG],
+    'infoFunctions' => [@EXPORT_INFO],
+    'customizer'    => [@EXPORT_CUSTOMIZER],
+    'all'           => [@EXPORT_OK],
+);  # v0.032007: add the tags
 
-our $VERSION = 0.032001;
+our $VERSION = 0.040;
 our %valid = ();
 our @bonus;
 our @onboard;
@@ -21,23 +34,32 @@ our $WordFile = './wordlist';
 our $GameName = '';
 our $BoardCols = 15;    # v0.032001
 our $BoardRows = 15;    # v0.032001
+our $MinimumWordLength = 2; # v0.032003
+our $BingoHandLength = 7;   # v0.032005
 
 sub scrabble {
-    _var_init(15,15);
+    var_init(15,15,7);
     _scrabble_init();
     display();
     search(shift, shift);
 }
 
+sub superscrabble {     # v0.032002
+    var_init(21,21,7);
+    _superscrabble_init();
+    display();
+    search(shift, shift);
+}
+
 sub literati {
-    _var_init(15,15);
+    var_init(15,15,7);
     _literati_init();
     display();
     search(shift, shift);
 }
 
 sub wordswithfriends {
-    _var_init(15,15);
+    var_init(15,15,7);
     _wordswithfriends_init();
     display();
     search(shift, shift);
@@ -45,20 +67,24 @@ sub wordswithfriends {
 
 sub set_rows($) { $BoardRows = shift if defined $_[0]; }
 sub set_cols($) { $BoardCols = shift if defined $_[0]; }
-sub _n_cols() { return $BoardCols; }
-sub _n_rows() { return $BoardRows; }
+sub n_cols() { return $BoardCols; }
+sub n_rows() { return $BoardRows; }
 sub _max_col() { return $BoardCols-1; }
 sub _max_row() { return $BoardRows-1; }
+sub _center_col() { return _max_col()/2; }  # v0.032003
+sub _center_row() { return _max_row()/2; }  # v0.032003
+sub numTilesPerHand() { return $BingoHandLength; }   # v0.032005
 
-sub _var_init {
+sub var_init {
     set_rows($_[0]) if (defined $_[0]);
-    set_rows($_[1]) if (defined $_[1]);
-
-    open (my $fh, $WordFile ) || croak "Can not open words file \"$WordFile\"\n\t$!";
+    set_cols($_[1]) if (defined $_[1]);
+    croak "INVALID rows=$BoardRows, cols=$BoardCols:\n\tFor now, must be an odd square board, such as 15x15 or 17x17, not 16x16 or 15x17.\n"  unless ($BoardRows==$BoardCols) && ($BoardRows % 2 == 1);   # v0.032003 this restriction prevents difficult calcs for the center square
+    $BingoHandLength = ($_[2])  if (defined $_[2]);
 
     %values = ();
     undef $words;
     undef @bonus;
+    undef %solutions;   # v0.032002 = prevents accidentally combining solution sets from multiple games
 
     foreach my $r (0.._max_row) {
         foreach my $c (0.._max_col) {
@@ -67,12 +93,15 @@ sub _var_init {
     }
 
     print "Hashing words...\n";
+    my $fh;
+    open( $fh, $WordFile ) || croak "Cannot open words file \"$WordFile\"\n\t$!";
     while (<$fh>) {
         chomp;
+        next if length($_) < $MinimumWordLength;    # ignore short words (v0.032003)
         $valid{$_} = 1;
         push @{$words->[length $_]}, $_;
     }
-
+    close $fh;
 }
 
 sub check {
@@ -171,53 +200,61 @@ sub display {
 
 # 0.02: separate input() from search(), to make it easier to override the input() function (for example, with possible future Games::Literati::WebInterface)
 sub input {
-    my $input;
+    my $input = "";
 
   INPUT:
-    for my $row (0.._max_row) {
-        print "row $row:\n";
-        $input = <STDIN>;
-        chomp $input;
-        if (length($input) > _n_cols) {
-            printf "over board: %d columns is more than %d\n", length($input), _n_cols;
-            goto INPUT;
+    while(1) {
+        for my $row (0.._max_row) {
+            print "row $row:\n";
+            $input = <STDIN>;
+            chomp $input;
+            if (length($input) > n_cols) {
+                printf "over board: %d columns is more than %d\n", length($input), n_cols;
+                next INPUT;
+            }
+            $onboard[$row]=[split //, $input];
+        }
+        print "---------$GameName----------\n";
+        display();
+
+        $input = "";
+        while( $input !~ /^(yes|no)$/ ) {
+            print "Is the above correct?\n";
+            $input = <STDIN>;
+            chomp $input;
         }
 
-        $onboard[$row]=[split //, $input];
+        last INPUT if $input =~ /^yes$/;
     }
-    print "---------$GameName----------\n";
-    display();
-
-  INVALID:
-    print "Is the above correct?\n";
-
-    $input = <STDIN>;
-    goto INVALID unless ($input =~ /yes|no/);
-    goto INPUT unless ($input =~ /yes/);
 
   WILD:
-    print "wild tiles are at:[Row1,Col1 Row2,Col2 ...]\n";
-    $input = <STDIN>;
-    chomp $input;
+    while(1) {
+        print "wild tiles are at:[Row1,Col1 Row2,Col2 ...]\n";
+        $input = <STDIN>;
+        chomp $input;
 
-    @wilds = ();
-    goto TILES unless $input;
-    my @w = (split /\s/, $input);
-    for (@w) {
-        my ($r, $c) = split (/,/, $_);
-        unless (defined $onboard[$r][$c] && $onboard[$r][$c] ne '.') {
-            print "Invalid wild tile positions, please re-enter.\n";
-            goto WILD;
+        @wilds = ();
+        last WILD unless $input;
+        my @w = (split /\s/, $input);
+        for (@w) {
+            my ($r, $c) = split (/,/, $_);
+            unless (defined $onboard[$r][$c] && $onboard[$r][$c] ne '.') {
+                print "Invalid wild tile positions, please re-enter.\n";
+                next WILD;
+            }
+            $wilds[$r][$c] = 1;
         }
-        $wilds[$r][$c] = 1;
+        last WILD;
     }
 
   TILES:
-    print "Enter tiles:\n";
-    $input = <STDIN>;
-    chomp $input;
-
-    return $input;
+    while(1) {
+        print "Enter tiles:\n";
+        $input = <STDIN>;
+        chomp $input;
+        last TILES unless length($input) > $BingoHandLength;
+    }
+    return lc $input;  # v0.032006 = convert to lower case
 }
 
 sub search {
@@ -238,7 +275,7 @@ sub search {
     _rotate_board();
 
     my @args;
-    for my $key (sort {$solutions{$b} <=> $solutions{$a}} keys %solutions) {
+    for my $key (sort { ($solutions{$b} <=> $solutions{$a}) || ($a cmp $b) } keys %solutions) { # sort by score, then alphabetically by solution
         last if ++$best > 10;
 
         print "Possible Top Ten Solution $best: $key, score $solutions{$key}\n";
@@ -264,7 +301,7 @@ sub _mathwork {
         print "using $use tiles:\n";
 
         for my $row (0.._max_row) {
-            for my $col (0.._n_rows-$use) {
+            for my $col (0..n_rows-$use) {
                 next if $onboard[$row][$col] ne '.';    # skip populated tiles
                 $go_on = 0;
                 $actual_letters = $letters;
@@ -279,12 +316,13 @@ sub _mathwork {
 
                     unless ($go_on) {
                         if (
-                            $onboard[$row][$col] ne '.'   ||
-                            ($column > 0        && $onboard[$row][$column-1] ne '.')  ||
-                            ($column < _max_col && $onboard[$row][$column+1] ne '.')  ||
-                            ($row > 0           && $onboard[$row-1][$column] ne '.')  ||
-                            ($row < _max_row    && $onboard[$row+1][$column] ne '.')  ||
-                            ($row == 7    && $column == 7)) {   # TODO = this last condition is only valid on 15x15 with 7 tiles
+                            ($onboard[$row][$col] ne '.')   ||
+                            ($column > 0         && $onboard[$row][$column-1] ne '.')  ||
+                            ($column < _max_col  && $onboard[$row][$column+1] ne '.')  ||
+                            ($row > 0            && $onboard[$row-1][$column] ne '.')  ||
+                            ($row < _max_row     && $onboard[$row+1][$column] ne '.')  ||
+                            ($row == _center_row && $column == _center_col)
+                        ) {
                             $go_on = 1;
                         }
                     }
@@ -294,7 +332,7 @@ sub _mathwork {
                     }
                     $column ++;
                 } # $count down to 0
-                next if $column > _n_cols;  # next starting-col if this column has extended beyond the board
+                next if $column > n_cols;  # next starting-col if this column has extended beyond the board
                 next unless $go_on == 1;    # next starting-col if we determined that we should stop this attempt
 
                 # if we made it here, there's enough room for a word of length==$use;
@@ -327,7 +365,7 @@ sub _mathwork {
                     for my $tryin (@{$found{"$actual_letters,$_"}}) {
 
                         my @values = @{ $tryin->{values} };
-                        my $index  = index ($record, "/");      # where is the first tile I'm trying is
+                        my $index  = index ($record, "/");      # where the first tile I'm trying is located
                         my $fail   = 0;
                         my $replace;
                         my $score  = 0;
@@ -391,6 +429,12 @@ sub _mathwork {
                                     elsif ($bonus[$row][$c] eq "TW") {
                                         $score += ($t_score + $v) * 3;
                                     }
+                                    elsif ($bonus[$row][$c] =~ /^(\d+)L$/) { # v0.032002
+                                        $score += $t_score + $v * $1;
+                                    }
+                                    elsif ($bonus[$row][$c] =~ /^(\d+)W$/) { # v0.032002
+                                        $score += ($t_score + $v) * $1;
+                                    }
                                     else {
                                         $score += $t_score + $v;
                                     }
@@ -419,6 +463,9 @@ sub _mathwork {
                                 elsif ($bonus[$row][$col+$col_index] eq "DL") {
                                     $t_score += $values[$cc] * 2;
                                 }
+                                elsif ($bonus[$row][$col+$col_index] =~ /^(\d+)L$/) { # v0.032002
+                                    $t_score += $values[$cc] * $1;  # multiply tile by the number that prefixes the L
+                                }
                                 elsif ($bonus[$row][$col+$col_index] eq "DW") {
                                     $t_score += $values[$cc];
                                     $t_flag .=  "*2";
@@ -426,6 +473,10 @@ sub _mathwork {
                                 elsif ($bonus[$row][$col+$col_index] eq "TW") {
                                     $t_score += $values[$cc];
                                     $t_flag .=  "*3";
+                                }
+                                elsif ($bonus[$row][$col+$col_index] =~ /^(\d+)W$/) { # v0.032002
+                                    $t_score += $values[$cc];
+                                    $t_flag .=  "*$1";  # multiply word by the number that prefixes the W
                                 }
                                 else {
                                     $t_score += $values[$cc];
@@ -442,17 +493,16 @@ sub _mathwork {
                             $col_index ++;
                         } # foreach split trying
 
-                        $score += eval "$t_score$t_flag";           # add in the bonus-enabled horizontal score to the pre-calculated veritcal scores
-                                                                    # POSSIBLY CLEARER: if $t_flag is just changed to $word_multiplier with an integer value starting at 1,
-                                                                    #   then this could be $t_score * $word_multiplier;
-                        $score += $bingo_bonus if $use == 7;        # add in bingo-bonus if all tiles used
-                                                                    # FEATURE REQUEST: replace 7 with configurable $BINGO_SIZE
+                        $score += eval "$t_score$t_flag";                   # add in the bonus-enabled horizontal score to the pre-calculated veritcal scores
+                                                                            # POSSIBLY CLEARER: if $t_flag is just changed to $word_multiplier with an integer value starting at 1,
+                                                                            #   then this could be $t_score * $word_multiplier;
+                        $score += $bingo_bonus if $use == $BingoHandLength; # add in bingo-bonus if all tiles used (v0.032005: configurable)
 
                         $solution = ($rotate?"column" : "row") .
                             " $row become: '$trying' starting at " .
                             ($rotate?"row" : "column") .
                             " $col " .
-                            ($use == 7? "(BINGO!!!!)" : "");        # FEATURE REQUEST: replace 7 with configurable $BINGO_SIZE
+                            ($use == $BingoHandLength ? "(BINGO!!!!)" : "");  # v0.032005 = configurable
 
                         print "($score)\t$solution\n";
                         $solutions{"$solution using $use tile(s)"} = $score;
@@ -482,74 +532,182 @@ sub _init {
     _scrabble_init();
 }
 
+sub set_bonus_4quad {   # v0.032009
+    # _set_bonus_4quad(r,c,b) will set the bonus array based on the row, column, and bonus text supplied
+    #   it puts them in the four quadrants (r,c), (#-r,c), (r,#-c), (#-r,#-c) to keep a perfectly-balanced
+    #   board
+    my $ra = shift || 0;
+    my $ca = shift || 0;
+    my $b  = shift || '';
+
+    my $rb = _max_row - $ra;
+    my $cb = _max_col - $ca;
+
+    $bonus[$ra][$ca] = $b;
+    $bonus[$rb][$ca] = $b;
+    $bonus[$ra][$cb] = $b;
+    $bonus[$rb][$cb] = $b;
+
+    return $b;
+}
+
 sub _scrabble_init {
 
     $GameName = "Scrabble";
+    ##########################################################################
+    # Scrabble                                                               #
+    ##########################################################################
+    #      0   1   2   3   4   5   6   7   8   9   10  11  12  13  14        #
+    # 0   [TW][__][__][DL][__][__][__][TW][__][__][__][DL][__][__][TW] # 0   #
+    # 1   [__][DW][__][__][__][TL][__][__][__][TL][__][__][__][DW][__] # 1   #
+    # 2   [__][__][DW][__][__][__][DL][__][DL][__][__][__][DW][__][__] # 2   #
+    # 3   [DL][__][__][DW][__][__][__][DL][__][__][__][DW][__][__][DL] # 3   #
+    # 4   [__][__][__][__][DW][__][__][__][__][__][DW][__][__][__][__] # 4   #
+    # 5   [__][TL][__][__][__][TL][__][__][__][TL][__][__][__][TL][__] # 5   #
+    # 6   [__][__][DL][__][__][__][DL][__][DL][__][__][__][DL][__][__] # 6   #
+    # 7   [TW][__][__][DL][__][__][__][DW][__][__][__][DL][__][__][TW] # 7   #
+    # 8   [__][__][DL][__][__][__][DL][__][DL][__][__][__][DL][__][__] # 8   #
+    # 9   [__][TL][__][__][__][TL][__][__][__][TL][__][__][__][TL][__] # 9   #
+    # 10  [__][__][__][__][DW][__][__][__][__][__][DW][__][__][__][__] # 10  #
+    # 11  [DL][__][__][DW][__][__][__][DL][__][__][__][DW][__][__][DL] # 11  #
+    # 12  [__][__][DW][__][__][__][DL][__][DL][__][__][__][DW][__][__] # 12  #
+    # 13  [__][DW][__][__][__][TL][__][__][__][TL][__][__][__][DW][__] # 13  #
+    # 14  [TW][__][__][DL][__][__][__][TW][__][__][__][DL][__][__][TW] # 14  #
+    #      0   1   2   3   4   5   6   7   8   9   10  11  12  13  14        #
+    ##########################################################################
 
-    $bonus[0][0]   = "TW";
-    $bonus[0][7]   = "TW";
-    $bonus[0][14]  = "TW";
-    $bonus[7][0]   = "TW";
-    $bonus[7][14]  = "TW";
-    $bonus[14][0]  = "TW";
-    $bonus[14][7]  = "TW";
-    $bonus[14][14] = "TW";
+    set_bonus_4quad(0,0,'TW');
+    set_bonus_4quad(0,7,'TW');  # middle column
+    set_bonus_4quad(7,0,'TW');  # middle row
 
-    $bonus[1][1]   = "DW";
-    $bonus[1][13]  = "DW";
-    $bonus[2][2]   = "DW";
-    $bonus[2][12]  = "DW";
-    $bonus[3][3]   = "DW";
-    $bonus[3][11]  = "DW";
-    $bonus[4][4]   = "DW";
-    $bonus[4][10]  = "DW";
-    $bonus[7][7]   = "DW";
-    $bonus[10][4]  = "DW";
-    $bonus[10][10] = "DW";
-    $bonus[11][3]  = "DW";
-    $bonus[11][11] = "DW";
-    $bonus[12][2]  = "DW";
-    $bonus[12][12] = "DW";
-    $bonus[13][1]  = "DW";
-    $bonus[13][13] = "DW";
+    set_bonus_4quad(1,1,'DW');
+    set_bonus_4quad(2,2,'DW');
+    set_bonus_4quad(3,3,'DW');
+    set_bonus_4quad(4,4,'DW');
+    set_bonus_4quad(7,7,'DW');  #center
 
-    $bonus[0][3]   = "DL";
-    $bonus[0][11]  = "DL";
-    $bonus[2][6]   = "DL";
-    $bonus[2][8]   = "DL";
-    $bonus[3][0]   = "DL";
-    $bonus[3][7]   = "DL";
-    $bonus[3][14]  = "DL";
-    $bonus[6][2]   = "DL";
-    $bonus[6][6]   = "DL";
-    $bonus[6][8]   = "DL";
-    $bonus[6][12]  = "DL";
-    $bonus[7][3]   = "DL";
-    $bonus[7][11]  = "DL";
-    $bonus[8][2]   = "DL";
-    $bonus[8][6]   = "DL";
-    $bonus[8][8]   = "DL";
-    $bonus[8][12]  = "DL";
-    $bonus[11][0]  = "DL";
-    $bonus[11][7]  = "DL";
-    $bonus[11][14] = "DL";
-    $bonus[12][6]  = "DL";
-    $bonus[12][8]  = "DL";
-    $bonus[14][3]  = "DL";
-    $bonus[14][11] = "DL";
+    set_bonus_4quad(0,3,'DL');
+    set_bonus_4quad(2,6,'DL');
+    set_bonus_4quad(3,0,'DL');
+    set_bonus_4quad(3,7,'DL');
+    set_bonus_4quad(6,2,'DL');
+    set_bonus_4quad(6,6,'DL');
+    set_bonus_4quad(7,3,'DL');  #middle row
 
-    $bonus[1][5]   = "TL";
-    $bonus[1][9]   = "TL";
-    $bonus[5][1]   = "TL";
-    $bonus[5][5]   = "TL";
-    $bonus[5][9]   = "TL";
-    $bonus[5][13]  = "TL";
-    $bonus[9][1]   = "TL";
-    $bonus[9][5]   = "TL";
-    $bonus[9][9]   = "TL";
-    $bonus[9][13]  = "TL";
-    $bonus[13][5]  = "TL";
-    $bonus[13][9]  = "TL";
+    set_bonus_4quad(1,5,'TL');
+    set_bonus_4quad(5,1,'TL');
+    set_bonus_4quad(5,5,'TL');
+
+    for my $row (0.._max_row) {
+        for my $col (0.._max_col) {
+            $onboard[$row][$col] = '.';
+        }
+    }
+
+    %values = (
+        a=>1,
+        b=>3,
+        c=>3,
+        d=>2,
+        e=>1,
+        f=>4,
+        g=>2,
+        h=>4,
+        i=>1,
+        j=>8,
+        k=>5,
+        l=>1,
+        m=>3,
+        n=>1,
+        o=>1,
+        p=>3,
+        q=>10,
+        r=>1,
+        s=>1,
+        t=>1,
+        u=>1,
+        v=>4,
+        w=>4,
+        x=>8,
+        y=>4,
+        z=>10
+               );
+    $bingo_bonus = 50;
+}
+
+sub _superscrabble_init {       # v0.032002
+
+    $GameName = "SuperScrabble";
+
+    ##################################################################################################
+    # SuperScrabble                                                                                  #
+    ##################################################################################################
+    #      0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19  20        #
+    # 0   [4W][__][__][2L][__][__][__][3W][__][__][2L][__][__][3W][__][__][__][2L][__][__][4W] # 0   #
+    # 1   [__][2W][__][__][3L][__][__][__][2W][__][__][__][2W][__][__][__][3L][__][__][2W][__] # 1   #
+    # 2   [__][__][2W][__][__][4L][__][__][__][2W][__][2W][__][__][__][4L][__][__][2W][__][__] # 2   #
+    # 3   [2L][__][__][3W][__][__][2L][__][__][__][3W][__][__][__][2L][__][__][3W][__][__][2L] # 3   #
+    # 4   [__][3L][__][__][2W][__][__][__][3L][__][__][__][3L][__][__][__][2W][__][__][3L][__] # 4   #
+    # 5   [__][__][4L][__][__][2W][__][__][__][2L][__][2L][__][__][__][2W][__][__][4L][__][__] # 5   #
+    # 6   [__][__][__][2L][__][__][2W][__][__][__][2L][__][__][__][2W][__][__][2L][__][__][__] # 6   #
+    # 7   [3W][__][__][__][__][__][__][2W][__][__][__][__][__][2W][__][__][__][__][__][__][3W] # 7   #
+    # 8   [__][2W][__][__][3L][__][__][__][3L][__][__][__][3L][__][__][__][3L][__][__][2W][__] # 8   #
+    # 9   [__][__][2W][__][__][2L][__][__][__][2L][__][2L][__][__][__][2L][__][__][2W][__][__] # 9   #
+    # 10  [2L][__][__][3W][__][__][2L][__][__][__][2W][__][__][__][2L][__][__][3W][__][__][2L] # 10  #
+    # 11  [__][__][2W][__][__][2L][__][__][__][2L][__][2L][__][__][__][2L][__][__][2W][__][__] # 11  #
+    # 12  [__][2W][__][__][3L][__][__][__][3L][__][__][__][3L][__][__][__][3L][__][__][2W][__] # 12  #
+    # 13  [3W][__][__][__][__][__][__][2W][__][__][__][__][__][2W][__][__][__][__][__][__][3W] # 13  #
+    # 14  [__][__][__][2L][__][__][2W][__][__][__][2L][__][__][__][2W][__][__][2L][__][__][__] # 14  #
+    # 15  [__][__][4L][__][__][2W][__][__][__][2L][__][2L][__][__][__][2W][__][__][4L][__][__] # 15  #
+    # 16  [__][3L][__][__][2W][__][__][__][3L][__][__][__][3L][__][__][__][2W][__][__][3L][__] # 16  #
+    # 17  [2L][__][__][3W][__][__][2L][__][__][__][3W][__][__][__][2L][__][__][3W][__][__][2L] # 17  #
+    # 18  [__][__][2W][__][__][4L][__][__][__][2W][__][2W][__][__][__][4L][__][__][2W][__][__] # 18  #
+    # 19  [__][2W][__][__][3L][__][__][__][2W][__][__][__][2W][__][__][__][3L][__][__][2W][__] # 19  #
+    # 20  [4W][__][__][2L][__][__][__][3W][__][__][2L][__][__][3W][__][__][__][2L][__][__][4W] # 20  #
+    #      0   1   2   3   4   5   6   7   8   9   10  11  12  13  14  15  16  17  18  19  20        #
+    ##################################################################################################
+
+
+    set_bonus_4quad( 0, 0,'4W');
+
+    set_bonus_4quad( 0, 7,'3W');
+    set_bonus_4quad( 3, 3,'3W');
+    set_bonus_4quad( 3,10,'3W');    # middle column
+    set_bonus_4quad( 7, 0,'3W');
+    set_bonus_4quad(10, 3,'3W');    # middle row
+
+    set_bonus_4quad( 1, 1,'2W');
+    set_bonus_4quad( 1, 8,'2W');
+    set_bonus_4quad( 2, 2,'2W');
+    set_bonus_4quad( 2, 9,'2W');
+    set_bonus_4quad( 4, 4,'2W');
+    set_bonus_4quad( 5, 5,'2W');
+    set_bonus_4quad( 6, 6,'2W');
+    set_bonus_4quad( 7, 7,'2W');
+    set_bonus_4quad( 8, 1,'2W');
+    set_bonus_4quad( 9, 2,'2W');
+    set_bonus_4quad(10,10,'2W');    # center
+
+    set_bonus_4quad( 2, 5,'4L');
+    set_bonus_4quad( 5, 2,'4L');
+
+    set_bonus_4quad( 1, 4,'3L');
+    set_bonus_4quad( 4, 1,'3L');
+    set_bonus_4quad( 4, 8,'3L');
+    set_bonus_4quad( 8, 4,'3L');
+    set_bonus_4quad( 8, 8,'3L');
+
+    set_bonus_4quad( 0, 3,'2L');
+    set_bonus_4quad( 0,10,'2L');    # middle column
+    set_bonus_4quad( 3, 0,'2L');
+    set_bonus_4quad( 3, 6,'2L');
+    set_bonus_4quad( 5, 9,'2L');
+    set_bonus_4quad( 6, 3,'2L');
+    set_bonus_4quad( 6,10,'2L');    # middle column
+    set_bonus_4quad( 9, 5,'2L');
+    set_bonus_4quad( 9, 9,'2L');
+    set_bonus_4quad(10, 0,'2L');    # middle row
+    set_bonus_4quad(10, 6,'2L');    # middle row
 
     for my $row (0.._max_row) {
         for my $col (0.._max_col) {
@@ -592,80 +750,47 @@ sub _literati_init {
 
     $GameName = "Literati";
 
-    $bonus[0][3]   = 'TW';
-    $bonus[0][6]   = 'TL';
-    $bonus[0][8]   = 'TL';
-    $bonus[0][11]  = 'TW';
+    ##########################################################################
+    # Literati                                                               #
+    ##########################################################################
+    #      0   1   2   3   4   5   6   7   8   9   10  11  12  13  14        #
+    # 0   [__][__][__][3W][__][__][3L][__][3L][__][__][3W][__][__][__] # 0   #
+    # 1   [__][__][2L][__][__][2W][__][__][__][2W][__][__][2L][__][__] # 1   #
+    # 2   [__][2L][__][__][2L][__][__][__][__][__][2L][__][__][2L][__] # 2   #
+    # 3   [3W][__][__][3L][__][__][__][2W][__][__][__][3L][__][__][3W] # 3   #
+    # 4   [__][__][2L][__][__][__][2L][__][2L][__][__][__][2L][__][__] # 4   #
+    # 5   [__][2W][__][__][__][3L][__][__][__][3L][__][__][__][2W][__] # 5   #
+    # 6   [3L][__][__][__][2L][__][__][__][__][__][2L][__][__][__][3L] # 6   #
+    # 7   [__][__][__][2W][__][__][__][__][__][__][__][2W][__][__][__] # 7   #
+    # 8   [3L][__][__][__][2L][__][__][__][__][__][2L][__][__][__][3L] # 8   #
+    # 9   [__][2W][__][__][__][3L][__][__][__][3L][__][__][__][2W][__] # 9   #
+    # 10  [__][__][2L][__][__][__][2L][__][2L][__][__][__][2L][__][__] # 10  #
+    # 11  [3W][__][__][3L][__][__][__][2W][__][__][__][3L][__][__][3W] # 11  #
+    # 12  [__][2L][__][__][2L][__][__][__][__][__][2L][__][__][2L][__] # 12  #
+    # 13  [__][__][2L][__][__][2W][__][__][__][2W][__][__][2L][__][__] # 13  #
+    # 14  [__][__][__][3W][__][__][3L][__][3L][__][__][3W][__][__][__] # 14  #
+    #      0   1   2   3   4   5   6   7   8   9   10  11  12  13  14        #
+    ##########################################################################
 
-    $bonus[1][2]   = 'DL';
-    $bonus[1][5]   = 'DW';
-    $bonus[1][9]   = 'DW';
-    $bonus[1][12]  = 'DL';
+    set_bonus_4quad(0,3,'3W');
+    set_bonus_4quad(3,0,'3W');
 
-    $bonus[2][1]   = 'DL';
-    $bonus[2][4]   = 'DL';
-    $bonus[2][10]  = 'DL';
-    $bonus[2][13]  = 'DL';
+    set_bonus_4quad(1,5,'2W');
+    set_bonus_4quad(3,7,'2W');  # middle column
+    set_bonus_4quad(5,1,'2W');
+    set_bonus_4quad(7,3,'2W');  # middle row
 
-    $bonus[3][0]   = 'TW';
-    $bonus[3][3]   = 'TL';
-    $bonus[3][7]   = 'DW';
-    $bonus[3][11]  = 'TL';
-    $bonus[3][14]  = 'TW';
+    set_bonus_4quad(0,6,'3L');
+    set_bonus_4quad(3,3,'3L');
+    set_bonus_4quad(5,5,'3L');
+    set_bonus_4quad(6,0,'3L');
 
-    $bonus[4][2]   = 'DL';
-    $bonus[4][6]   = 'DL';
-    $bonus[4][8]   = 'DL';
-    $bonus[4][12]  = 'DL';
-
-    $bonus[5][1]   = 'DW';
-    $bonus[5][5]   = 'TL';
-    $bonus[5][9]   = 'TL';
-    $bonus[5][13]  = 'DW';
-
-    $bonus[6][0]   = 'TL';
-    $bonus[6][4]   = 'DL';
-    $bonus[6][10]  = 'DL';
-    $bonus[6][14]  = 'TL';
-
-    $bonus[7][3]   = 'DW';
-    $bonus[7][11]  = 'DW';
-
-    $bonus[8][0]   = 'TL';
-    $bonus[8][4]   = 'DL';
-    $bonus[8][10]  = 'DL';
-    $bonus[8][14]  = 'TL';
-
-    $bonus[9][1]   = 'DW';
-    $bonus[9][5]   = 'TL';
-    $bonus[9][9]   = 'TL';
-    $bonus[9][13]  = 'DW';
-
-    $bonus[10][2]  = 'DL';
-    $bonus[10][6]  = 'DL';
-    $bonus[10][8]  = 'DL';
-    $bonus[10][12] = 'DL';
-
-    $bonus[11][0]  = 'TW';
-    $bonus[11][3]  = 'TL';
-    $bonus[11][7]  = 'DW';
-    $bonus[11][11] = 'TL';
-    $bonus[11][14] = 'TW';
-
-    $bonus[12][1]  = 'DL';
-    $bonus[12][4]  = 'DL';
-    $bonus[12][10] = 'DL';
-    $bonus[12][13] = 'DL';
-
-    $bonus[13][2]  = 'DL';
-    $bonus[13][5]  = 'DW';
-    $bonus[13][9]  = 'DW';
-    $bonus[13][12] = 'DL';
-
-    $bonus[14][3]  = 'TW';
-    $bonus[14][6]  = 'TL';
-    $bonus[14][8]  = 'TL';
-    $bonus[14][11] = 'TW';
+    set_bonus_4quad(1,2,'2L');
+    set_bonus_4quad(2,1,'2L');
+    set_bonus_4quad(2,4,'2L');
+    set_bonus_4quad(4,2,'2L');
+    set_bonus_4quad(4,6,'2L');
+    set_bonus_4quad(6,4,'2L');
 
     $bingo_bonus   = 35;
 
@@ -710,103 +835,52 @@ sub _wordswithfriends_init {
 
     $GameName = "Words With Friends";
 
-    #  0   1   2   3   4   5   6   7   8   9   10  11  12  13  14
-    # [__][__][__][TW][__][__][TL][__][TL][__][__][TW][__][__][__] 0
-    # [__][__][DL][__][__][DW][__][__][__][DW][__][__][DL][__][__] 1
-    # [__][DL][__][__][DL][__][__][__][__][__][DL][__][__][DL][__] 2
-    # [TW][__][__][TL][__][__][__][DW][__][__][__][TL][__][__][TW] 3
-    # [__][__][DL][__][__][__][DL][__][DL][__][__][__][DL][__][__] 4
-    # [__][DW][__][__][__][TL][__][__][__][TL][__][__][__][DW][__] 5
-    # [TL][__][__][__][DL][__][__][__][__][__][DL][__][__][__][TL] 6
-    # [__][__][__][DW][__][__][__][__][__][__][__][DW][__][__][__] 7
-    # [TL][__][__][__][DL][__][__][__][__][__][DL][__][__][__][TL] 8
-    # [__][DW][__][__][__][TL][__][__][__][TL][__][__][__][DW][__] 9
-    # [__][__][DL][__][__][__][DL][__][DL][__][__][__][DL][__][__] 10
-    # [TW][__][__][TL][__][__][__][DW][__][__][__][TL][__][__][TW] 11
-    # [__][DL][__][__][DL][__][__][__][__][__][DL][__][__][DL][__] 12
-    # [__][__][DL][__][__][DW][__][__][__][DW][__][__][DL][__][__] 13
-    # [__][__][__][TW][__][__][TL][__][TL][__][__][TW][__][__][__] 14
+    ##########################################################################
+    # Words With Friends                                                     #
+    ##########################################################################
+    #      0   1   2   3   4   5   6   7   8   9   10  11  12  13  14        #
+    # 0   [__][__][__][3W][__][__][3L][__][3L][__][__][3W][__][__][__] # 0   #
+    # 1   [__][__][2L][__][__][2W][__][__][__][2W][__][__][2L][__][__] # 1   #
+    # 2   [__][2L][__][__][2L][__][__][__][__][__][2L][__][__][2L][__] # 2   #
+    # 3   [3W][__][__][3L][__][__][__][2W][__][__][__][3L][__][__][3W] # 3   #
+    # 4   [__][__][2L][__][__][__][2L][__][2L][__][__][__][2L][__][__] # 4   #
+    # 5   [__][2W][__][__][__][3L][__][__][__][3L][__][__][__][2W][__] # 5   #
+    # 6   [3L][__][__][__][2L][__][__][__][__][__][2L][__][__][__][3L] # 6   #
+    # 7   [__][__][__][2W][__][__][__][__][__][__][__][2W][__][__][__] # 7   #
+    # 8   [3L][__][__][__][2L][__][__][__][__][__][2L][__][__][__][3L] # 8   #
+    # 9   [__][2W][__][__][__][3L][__][__][__][3L][__][__][__][2W][__] # 9   #
+    # 10  [__][__][2L][__][__][__][2L][__][2L][__][__][__][2L][__][__] # 10  #
+    # 11  [3W][__][__][3L][__][__][__][2W][__][__][__][3L][__][__][3W] # 11  #
+    # 12  [__][2L][__][__][2L][__][__][__][__][__][2L][__][__][2L][__] # 12  #
+    # 13  [__][__][2L][__][__][2W][__][__][__][2W][__][__][2L][__][__] # 13  #
+    # 14  [__][__][__][3W][__][__][3L][__][3L][__][__][3W][__][__][__] # 14  #
+    #      0   1   2   3   4   5   6   7   8   9   10  11  12  13  14        #
+    ##########################################################################
 
+    set_bonus_4quad(0,3,'3W');
+    set_bonus_4quad(3,0,'3W');
 
-    $bonus[0][3]   = 'TW';
-    $bonus[0][6]   = 'TL';
-    $bonus[0][8]   = 'TL';
-    $bonus[0][11]  = 'TW';
+    set_bonus_4quad(1,5,'2W');
+    set_bonus_4quad(3,7,'2W');  # middle column
+    set_bonus_4quad(5,1,'2W');
+    set_bonus_4quad(7,3,'2W');  # middle row
 
-    $bonus[1][2]   = 'DL';
-    $bonus[1][5]   = 'DW';
-    $bonus[1][9]   = 'DW';
-    $bonus[1][12]  = 'DL';
+    set_bonus_4quad(0,6,'3L');
+    set_bonus_4quad(3,3,'3L');
+    set_bonus_4quad(5,5,'3L');
+    set_bonus_4quad(6,0,'3L');
 
-    $bonus[2][1]   = 'DL';
-    $bonus[2][4]   = 'DL';
-    $bonus[2][10]  = 'DL';
-    $bonus[2][13]  = 'DL';
-
-    $bonus[3][0]   = 'TW';
-    $bonus[3][3]   = 'TL';
-    $bonus[3][7]   = 'DW';
-    $bonus[3][11]  = 'TL';
-    $bonus[3][14]  = 'TW';
-
-    $bonus[4][2]   = 'DL';
-    $bonus[4][6]   = 'DL';
-    $bonus[4][8]   = 'DL';
-    $bonus[4][12]  = 'DL';
-
-    $bonus[5][1]   = 'DW';
-    $bonus[5][5]   = 'TL';
-    $bonus[5][9]   = 'TL';
-    $bonus[5][13]  = 'DW';
-
-    $bonus[6][0]   = 'TL';
-    $bonus[6][4]   = 'DL';
-    $bonus[6][10]  = 'DL';
-    $bonus[6][14]  = 'TL';
-
-    $bonus[7][3]   = 'DW';
-    $bonus[7][11]  = 'DW';
-
-    $bonus[8][0]   = 'TL';
-    $bonus[8][4]   = 'DL';
-    $bonus[8][10]  = 'DL';
-    $bonus[8][14]  = 'TL';
-
-    $bonus[9][1]   = 'DW';
-    $bonus[9][5]   = 'TL';
-    $bonus[9][9]   = 'TL';
-    $bonus[9][13]  = 'DW';
-
-    $bonus[10][2]  = 'DL';
-    $bonus[10][6]  = 'DL';
-    $bonus[10][8]  = 'DL';
-    $bonus[10][12] = 'DL';
-
-    $bonus[11][0]  = 'TW';
-    $bonus[11][3]  = 'TL';
-    $bonus[11][7]  = 'DW';
-    $bonus[11][11] = 'TL';
-    $bonus[11][14] = 'TW';
-
-    $bonus[12][1]  = 'DL';
-    $bonus[12][4]  = 'DL';
-    $bonus[12][10] = 'DL';
-    $bonus[12][13] = 'DL';
-
-    $bonus[13][2]  = 'DL';
-    $bonus[13][5]  = 'DW';
-    $bonus[13][9]  = 'DW';
-    $bonus[13][12] = 'DL';
-
-    $bonus[14][3]  = 'TW';
-    $bonus[14][6]  = 'TL';
-    $bonus[14][8]  = 'TL';
-    $bonus[14][11] = 'TW';
+    set_bonus_4quad(1,2,'2L');
+    set_bonus_4quad(2,1,'2L');
+    set_bonus_4quad(2,4,'2L');
+    set_bonus_4quad(4,2,'2L');
+    set_bonus_4quad(4,6,'2L');
+    set_bonus_4quad(6,4,'2L');
 
     $bingo_bonus   = 35;
 
     for my $row (0.._max_row) {
-        for my $col (0.._max_row) {
+        for my $col (0.._max_col) {
             $onboard[$row][$col] = '.';
         }
     }
@@ -841,6 +915,30 @@ sub _wordswithfriends_init {
     );
 
 }
+
+sub _text_bonus_board { # v0.032010
+    my $str = "";
+    my ($row, $col);
+    $str .= "    ##" . "#"x4 . "####"x(n_rows) . "#"x8 . "\n";
+    $str .= sprintf "    # %-*s #\n", (4*n_rows+10), $GameName;
+    $str .= "    ##" . "#"x4 . "####"x(n_rows) . "#"x8 . "\n";
+    $str .= sprintf "    # %-4s", '';
+    $str .= join '', map { sprintf " %-3d", $_ } @{[0 .. _max_col]};
+    $str .= " "x7 . "#\n";
+    for $row (0.._max_row) {
+        $str .= sprintf "    # %-4d", $row;
+        for $col (0.._max_col) {
+            $str .= sprintf "[%2s]", $bonus[$row][$col]||'__';
+        }
+        $str .= sprintf " # %-4d#\n", $row;
+    }
+    $str .= sprintf "    # %-4s", '';
+    $str .= join '', map { sprintf " %-3d", $_ } @{[0 .. _max_col]};
+    $str .= " "x7 . "#\n";
+    $str .= "    ##" . "#"x4 . "####"x(n_rows) . "#"x8 . "\n";
+    return $str;
+}
+
 1;
 
 
@@ -852,23 +950,45 @@ Games::Literati - For word games like Literati (or Scrabble, or Words With Frien
 
 =head1 SYNOPSIS
 
-    use Games::Literati qw/literati scrabble wordswithfriends/;
+    use Games::Literati qw/:allGames/;
     literati();
-    scrabble();
     wordswithfriends();
+    scrabble();
+    superscrabble();
+
+=head2 Export Tags
+
+=over
+
+=item :allGames => C<literati()>, C<wordswithfriends()>, C<scrabble()>, C<superscrabble()>
+
+=item :configGame => C<$WordFile>, C<$MinimumWordLength>
+
+=item :infoFunctions => C<n_rows()>, C<n_cols()>, C<numTilesPerHand()>
+
+=begin comments
+
+=item :customizer => C<:infoFunctions>, C<var_init()>
+
+=end comments
+
+=back
 
 =head1 DESCRIPTION
 
 B<Games::Literati> helps you find out I<all> solutions for a given
-board and tiles.  It can be used to play Scrabble, Literati, Words
-with Friends, or (by overriding or extending the package) other
-similar games.
+board and tiles.  It can be used to play
+L<Scrabble|https://en.wikipedia.org/wiki/Scrabble> (the original 15x15 grid),
+L<Super Scrabble|https://en.wikipedia.org/wiki/Super_Scrabble> (the official 21x21 extended grid),
+L<Literati|http://internetgames.about.com/library/weekly/aa120802a.htm> (an old Yahoo! Games 15x15 grid, from which B<Games::Literati> derives its name), and
+L<Words With Friends|https://www.zynga.com/games/words-friends> (a newer 15x15 grid).
+By overriding or extending the package, one could implement other similar letter-tile grids,
+with customizable bonus placements.
 
-To use this module to play the games, a minimal program such as the
+To use this module to play the games, a one-liner such as the
 following can be used:
 
-        use Games::Literati qw/literati/;
-        literati();
+        perl -MGames::Literati=literati -e "literati();"
 
 Enter the data prompted then the best 10 solutions will be displayed.
 
@@ -977,7 +1097,7 @@ Create game file named F<t>, like this:
 
 Run the game from the command line:
 
-    $perl -e'use Games::Literati qw(literati); literati()' < t
+    perl -MGames::Literati=literati -e'literati()' < t
 
 The output will be (depending on word list)
 
@@ -1002,7 +1122,7 @@ The output will be (depending on word list)
 
 If you run the same board with the Scrabble engine:
 
-    $ perl -e'use Games::Literati qw(scrabble);scrabble()' < t
+    $ perl -MGames::Literati=scrabble -e'scrabble()' < t
 
 You will get
 
@@ -1044,7 +1164,7 @@ populated game, such as:
 
 Run the game from the command line:
 
-    perl -e'use Games::Literati qw(literati); literati()' < t
+    perl -MGames::Literati=literati -e'literati()' < t
 
 The output will be (depending on word list)
 
@@ -1064,7 +1184,7 @@ The output will be (depending on word list)
 
 If you run the same board with the Scrabble engine:
 
-    perl -e'use Games::Literati qw(scrabble); scrabble()' < t
+    perl -MGames::Literati=scrabble -e'scrabble()' < t
 
 You will get
 
@@ -1082,13 +1202,18 @@ Good luck!:)
 
 =item literati([I<min>[, I<max>]])
 
+=item wordswithfriends([I<min>[, I<max>]])
+
 =item scrabble([I<min>[, I<max>]])
 
-=item wordswithfriends([I<min>[, I<max>]])
+=item superscrabble([I<min>[, I<max>]])
 
 These functions execute each of the games.  As shown in the L</SYNOPSIS>
 and L</SAMPLE TURNS>, each turn generally requires just one call to
-the specific game function.  There are two optional arguments:
+the specific game function.  Each function implements the appropriate
+15x15 (or 20x20 for superscrabble) grid of bonus scores.
+
+There are two optional arguments to the game functions:
 
 =over 4
 
@@ -1103,8 +1228,10 @@ will internally use the default of I<min>=C<1>.
 
 =item I<max>
 
-The maximum number of tiles to play, which defaults to C<7>.  If you
-want to restrict your computer player to play 5 or fewer tiles, you would set I<max>=C<5>.
+The maximum number of tiles to play, which defaults to all the tiles
+in the given hand.  If you want to restrict your computer player to play 5
+or fewer tiles, you would set I<max>=C<5>.  It will check to ensure that
+I<max> is bounded by the C<numTilesPerHand()>..
 
 If you want to specify I<max>, you B<must> also specify a I<min>.
 
@@ -1118,10 +1245,10 @@ player to using 3, 4, or 5 tiles on this turn.
 
 =item find(I<\%args>) or find(I<$args>)
 
-Finds possible valid words, based on the hashref provided.  Generally,
-this is not needed, but it will give you access to a function similar
-to the internal function used by the game functions to find words,
-but providing extra hints to the user.
+Finds possible valid words, based on the hashref provided.  When playing
+the automated game using the above functions, this is not needed, but it
+is provided to give you access to a function similar to the internal function,
+but it outputs extra information to the user.
 
 =over 4
 
@@ -1152,6 +1279,12 @@ solutions. If false, find() will print suggested words to STDOUT.
 =back
 
 =back
+
+B<Note>: The I<find()> function is not under active development, and changes to the
+internal function might not be replicated to this public function.  (It is
+documented and left exportable to be backward compatible with the original
+B<Games::Literati 0.01> release.)
+
 
 =back
 
@@ -1212,7 +1345,15 @@ to your downloaded list.
 For each I<word> that B<Games::Literati> parses from the C<$WordList>
 file, it will set C<$valid{I<word>}> to C<1>.
 
+=item $MinimumWordLength
+
+Default = 2. This is used when parsing the dictionary file (during C<var_init>)
+to ignore words that are too short.  Most of these games don't allow
+single-letter words ("I", "a").
+
 =back
+
+=begin comment
 
 =head1 CUSTOMIZATION
 
@@ -1288,12 +1429,67 @@ will allow a change in input method, such as via CGI.  Look at the source
 code for the default input(), so you know what globals need to be set,
 and what to return.
 
+=item var_init(I<numRows>, I<numCols>, I<numTilesPerHand>)
+
+Initialize the board setup, including number of rows and number of columns,
+and the number of tiles in a (full) hand.  Bingos occur when the number of
+tiles played equals I<numTilesPerHand>).
+
+This is used when manually defining a new game.  For example, if you wanted
+to define a game called C<tinyscrabble> with a 7x7 board, and only 5 tiles
+dealt to each player, the "game engine routine" would be defined as
+
+    # run the game:
+    sub tinyscrabble {
+        var_init(7,7,5);
+        _tinyscrabble_init();
+        display();
+        search(shift, shift);
+    }
+
+=item define your own board
+
+When creating your own custom game, you need a subroutine to
+define the game.  Pattern it similar to the following:
+
+    # define the board:
+    use Games::Literati;    # COMING SOON: the use Games::Literati qw/:customizer/
+                            # which will make it easy to get rid of all the $Games::Literati:: prefixes
+    sub _tinyscrabble_init {
+        # name the game
+        $Games::Literati::GameName = "TinyScrabble";
+
+        # define the bonuses
+        $Games::Literati::bonus[0][0] = 'DW';
+        # ...
+        $Games::Literati::bonus[6][6] = 'DW';
+
+        for my $row (0.._max_row) {
+            for my $col (0.._max_col) {
+                $onboard[$row][$col] = '.';
+            }
+        }
+
+        %Games::Literati::values = (
+            a => 1,
+            z => 1000,
+        )
+
+        $Games::Literati::bingo_bonus = 5000;
+    }
+
 =back
+
+=end comment
 
 =head1 BUGS AND FEATURE REQUESTS
 
 Please report any bugs or feature requests emailing C<bug-Games-Literati AT rt.cpan.org>
 or thru the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Games-Literati>.
+
+A simple interface (with examples) for play your own custom grid is in the works.  Studying
+the source code may point you in the right direction if you want a custom grid before the
+customization features are made public.
 
 =head1 AUTHOR
 
