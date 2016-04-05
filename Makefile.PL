@@ -14,6 +14,12 @@ require 5.006;
             repository => 'https://github.com/pryrt/Games-Literati',
         },
         keywords => [ 'Scrabble', 'Literati', 'Words with Friends', 'tile', 'word', 'game' ],
+        provides => {
+            'Games::Literati' => {
+                file => 'Literati.pm',
+                version => 0.04,
+            },
+        },
     },
 );
 
