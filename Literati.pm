@@ -21,7 +21,7 @@ our %EXPORT_TAGS    = (
     'all'           => [@EXPORT_OK],
 );  # v0.032007: add the tags
 
-our $VERSION = 0.040;
+our $VERSION = 0.041;
 our %valid = ();
 our @bonus;
 our @onboard;
@@ -956,6 +956,14 @@ Games::Literati - For word games like Literati (or Scrabble, or Words With Frien
     scrabble();
     superscrabble();
 
+Example Windows-based one-liner:
+
+    perl -MGames::Literati=literati -e "$Games::Literati::WordList = './mydict.txt'; literati();"
+
+Example linux-based one-liner:
+
+    perl -MGames::Literati=literati -e "$Games::Literati::WordList = '/usr/dict/words'; literati();"
+
 =head2 Export Tags
 
 =over
@@ -989,6 +997,9 @@ To use this module to play the games, a one-liner such as the
 following can be used:
 
         perl -MGames::Literati=literati -e "literati();"
+
+(This will only work if `F<./wordlist>' is in the current directory.  Otherwise,
+see L</PUBLIC VARIABLES>, below.)
 
 Enter the data prompted then the best 10 solutions will be displayed.
 
@@ -1069,7 +1080,7 @@ ends with a full NEWLINE character on your system (it's safest to add
 a blank line after the list of tiles).
 
 I<Make sure to put `F<./wordlist>' in the working directory when running
-the program, or to set C<$WordFile> to the path to your dictionary.>
+the program, or to set C<$WordFile> as described in L</PUBLIC VARIABLES>, below.>
 
 =head2 First Turn
 
@@ -1259,7 +1270,7 @@ C<internal>.
 
 =over 4
 
-=item $args->{etters}
+=item $args->{letters}
 
 This is the list of letters available to play.
 
@@ -1500,7 +1511,7 @@ and made bug fixes.
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2003, Chicheng Zhang.  Copyright (C) 2016 by Peter C. Jones
+Copyright (c) 2003, Chicheng Zhang.  Copyright (C) 2016,2019 by Peter C. Jones
 
 This is free software; you can redistribute it and/or modify it under the same terms as the Perl 5 programming language system itself.
 
