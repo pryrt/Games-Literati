@@ -1302,7 +1302,7 @@ B<Games::Literati 0.01> release.)
 =head1 PUBLIC VARIABLES
 
 These variables are exportable, so can be fully qualified as
-C<%Games::Literati::valid>, or if included in the export list
+C<%Games::Literati::WordFile>, or if included in the export list
 when you C<use> the module, you can reference them directly,
 as
 
