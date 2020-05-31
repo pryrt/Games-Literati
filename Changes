@@ -44,3 +44,9 @@ Revision history for Perl extension Games::Literati.
 0.040  Sat Apr  2 16:00:00 2016
     - Add superscrabble() 21x21 board (https://rt.cpan.org/Ticket/Display.html?id=112455)
     - Update installation test suite
+
+0.041   Private (pryrt)
+    - Documentation fixes
+
+0.042   Private (pryrt)
+    - Develop get_solutions

@@ -10,7 +10,7 @@ our @ISA            = qw(Exporter);
 our @EXPORT_GAMES   = qw(scrabble superscrabble literati wordswithfriends);
 our @EXPORT_CONFIG  = qw($WordFile $MinimumWordLength);
 our @EXPORT_OTHER   = qw(find %valid);
-our @EXPORT_INFO    = qw(n_rows n_cols numTilesPerHand);
+our @EXPORT_INFO    = qw(n_rows n_cols numTilesPerHand get_solutions);
 our @EXPORT_CUSTOMIZER  = (@EXPORT_INFO, 'var_init');
 our @EXPORT_OK      = (@EXPORT_GAMES, @EXPORT_CONFIG, @EXPORT_OTHER, @EXPORT_INFO, @EXPORT_CUSTOMIZER);
 our %EXPORT_TAGS    = (
@@ -21,12 +21,13 @@ our %EXPORT_TAGS    = (
     'all'           => [@EXPORT_OK],
 );  # v0.032007: add the tags
 
-our $VERSION = 0.041;
+our $VERSION = 0.042;
 our %valid = ();
 our @bonus;
 our @onboard;
 our %values;
 our %solutions;
+our %solution_data;
 our $words;
 our $bingo_bonus;
 our @wilds;
@@ -74,6 +75,7 @@ sub _max_row() { return $BoardRows-1; }
 sub _center_col() { return _max_col()/2; }  # v0.032003
 sub _center_row() { return _max_row()/2; }  # v0.032003
 sub numTilesPerHand() { return $BingoHandLength; }   # v0.032005
+sub get_solutions() { return %solution_data; } # v0.042
 
 sub var_init {
     set_rows($_[0]) if (defined $_[0]);
@@ -85,6 +87,7 @@ sub var_init {
     undef $words;
     undef @bonus;
     undef %solutions;   # v0.032002 = prevents accidentally combining solution sets from multiple games
+    undef %solution_data;   # v0.042 = needs same prevention
 
     foreach my $r (0.._max_row) {
         foreach my $c (0.._max_col) {
@@ -505,7 +508,21 @@ sub _mathwork {
                             ($use == $BingoHandLength ? "(BINGO!!!!)" : "");  # v0.032005 = configurable
 
                         print "($score)\t$solution\n";
-                        $solutions{"$solution using $use tile(s)"} = $score;
+
+                        # store the solution, originally in the %solutions hash
+                        my $key="$solution using $use tile(s)";
+                        $solutions{$key} = $score;
+                        # in v0.042, add in the %solution_data hash, which makes it easier to grab data from the solution engine
+                        $solution_data{$key} = {
+                            score => $score,
+                            direction => $rotate ? "column" : "row",
+                            row => ($rotate ? $col : $row), # if it's in the rotate try, swap row and column
+                            col => ($rotate ? $row : $col), # if it's in the rotate try, swap row and column
+                            tiles_used => $use,
+                            word => $trying,
+                            bingo => ($use==$BingoHandLength)+0,
+                        };
+# TODO: need wildcard indication somehow
 
                     } # end for my tryin
                 } # end for split
@@ -972,7 +989,7 @@ Example linux-based one-liner:
 
 =item :configGame => C<$WordFile>, C<$MinimumWordLength>
 
-=item :infoFunctions => C<n_rows()>, C<n_cols()>, C<numTilesPerHand()>
+=item :infoFunctions => C<n_rows()>, C<n_cols()>, C<numTilesPerHand()>, C<get_solutions()>
 
 =begin comments
 
@@ -1254,6 +1271,37 @@ any tiles.
 Thus, specifying C<literati(3,5)> will restrict the computer Literati
 player to using 3, 4, or 5 tiles on this turn.
 
+=item n_rows()
+
+=item n_cols()
+
+Returns number of rows or columns for the most recent game type
+
+=item numTilesPerHand()
+
+Returns number of tiles in a full hand for the most recent game type
+
+=item get_solutions()
+
+Returns a hash
+
+    %solutions = get_solutions();
+
+    # equivalent to
+    %solutions = (
+        $key => {                   # [string]: the string that is printed; it's a really bad idea for the key, but it keeps things consistent with the old %Games::Literati::solutions keys
+            word => $word,          # [string]: the word being played
+            tiles_used => $ntiles,  # [number]: the _number_ of tiles used
+            score => $score,        # [number]: the score (equivalent to $Games::Literati::solutions{$key})
+            direction => $dir,      # [string]: either 'column' or 'row'
+            row => $row,            # [number]: the row number for the start of the word (0-based)
+            col => $col,            # [number]: the column number for start of the word (0-based)
+            bingo => $flag,         # [boolean]: whether this word was a BINGO or not
+                                    # TODO: need wild indicators
+        },
+        ...                         # repeat for other solutions
+    );
+
 =item find(I<\%args>) or find(I<$args>)
 
 Finds possible valid words, based on the hashref provided.  When playing
@@ -1495,8 +1543,7 @@ define the game.  Pattern it similar to the following:
 
 =head1 BUGS AND FEATURE REQUESTS
 
-Please report any bugs or feature requests emailing C<bug-Games-Literati AT rt.cpan.org>
-or thru the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Games-Literati>.
+Please report any bugs or feature requests thru the web interface at L<https://github.com/pryrt/Games-Literati/issues>.
 
 A simple interface (with examples) for play your own custom grid is in the works.  Studying
 the source code may point you in the right direction if you want a custom grid before the
@@ -1511,7 +1558,7 @@ and made bug fixes.
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2003, Chicheng Zhang.  Copyright (C) 2016,2019 by Peter C. Jones
+Copyright (c) 2003, Chicheng Zhang.  Copyright (C) 2016,2019,2020 by Peter C. Jones
 
 This is free software; you can redistribute it and/or modify it under the same terms as the Perl 5 programming language system itself.
 
