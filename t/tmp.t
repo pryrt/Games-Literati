@@ -85,19 +85,15 @@ sub search_game($$@) {
             #row => BELOW,
             #col => BELOW,
             #direction => BELOW,
-            #TODO: wild => ???
+            tiles_this_word => $_->{tiles_this_word},
+            tiles_consumed => $_->{tiles_consumed},
         };
         ($expected_solution->{direction}, my $d) = (split ' ', $dest);      # direction and row or column
         (undef, my $s) = (split ' ', $start);                               # column or row
         $expected_solution->{row} = ($s,$d)[$expected_solution->{direction} eq 'row']; # identify based on direction
         $expected_solution->{col} = ($d,$s)[$expected_solution->{direction} eq 'row']; # identify based on direction
-$expected_solution->{debug_key} = $solutions{$key}{debug_key};
+diag sprintf "__%04d__ tiles_this_word = \"%s\"\n", __LINE__, $solutions{$key}{tiles_this_word};
         is_deeply $solutions{$key}, $expected_solution, '... with correct solution{$key} hash' or BAIL_OUT "temporary";
-        TODO: {
-            local $TODO = 'wild not implemented yet';
-            ok $solutions{$key}{wild}, 'wild matches';
-diag sprintf "__%04d__ debug_key = \"%s\"\n", __LINE__, $solutions{$key}{debug_key};
-        };
 
         # now parse the printout to make sure it matches
         @best = qw/0 dest word start bingo exact/;
@@ -144,20 +140,13 @@ diag sprintf "__%04d__ debug_key = \"%s\"\n", __LINE__, $solutions{$key}{debug_k
     print $gameout if SearchGameOut();
 }
 
-#search_game('literati', $FILEHANDLE,
-#    { word=>'antlers', dest=>'row 7', start=>'column 1', score=>49 },               # all 5 should pass: ignore bingo
-#    { word=>'antlers', dest=>'row 7', start=>'column 1', score=>49, bingo=>1 },     # all 5 should pass: look for bingo==true
-#    { word=>'antlers', dest=>'row 7', start=>'column 6', score=>49, bingo=>0 },     # force a fail on BINGO, because I am requiring bingo==0
-#    { word=>'antlers', dest=>'column 7', start=>'row 7', score=>48 },               # force a fail on SCORE, because I am expecting wrong score=48
-#);
-
 my $INFILE;
 
 ##### BOARD#1: compare scrabble/literati/wordswithfriends scores
 open $INFILE, '<', 'game_w'      or die "open game_w: $!";
 search_game('wordswithfriends', $INFILE, 2,
-    { word=>'ant', dest=>'column 2', start=>'row 1', score=>2, n_tiles=>2 },
-    { word=>'an', dest=>'column 2', start=>'row 1', score=>1, n_tiles=>1 },
+    { word=>'ant', dest=>'column 2', start=>'row 1', score=>2, n_tiles=>2, tiles_this_word => 'a?t', tiles_consumed => '?t' },
+    { word=>'an', dest=>'column 2', start=>'row 1', score=>1, n_tiles=>1, tiles_this_word => 'a?', tiles_consumed => '?' },
 );
 
 done_testing();

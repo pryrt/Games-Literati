@@ -119,7 +119,7 @@ sub check {
     }
 }
 
-sub find {
+sub find {      # deprecated
     no warnings;
     my $args     = shift;
     my $letters  = $args->{letters};
@@ -166,20 +166,31 @@ sub _find {
     my $check_letters;
     my @results;
     my @v;
+    my @ltrs;
 
-  LINE: for (@{$words->[$len]}) {
-      $check_letters = $letters;
+    LINE: for (@{$words->[$len]}) {       # for all the words of the right length
+        $check_letters = $letters;        # move the tiles being used into
 
-      next LINE unless /^$re$/;
+        next LINE unless /^$re$/;         # stop looking at this word if it doesn't match the $re
 
-      @v = ();
-      for my $l (split //, $_) {
-            next LINE unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} ) or
-                               ( $check_letters =~ s/\?// and push @v, 0 ) );
+        @v = ();
+        for my $l (split //, $_) {
+            # this is a fun one
+            #   first line:
+            #       1) if you can take $l out of check-letters (once), then
+            #       2) push its value into @v,
+            #       3) [DEBUG:] then add it to the ltrs array
+            #   OR
+            #   second line:
+            #       1) if you can take '?' out of check-letters (once), then
+            #       2) push its value (0) into @v,
+            #       3) [DEBUG:] then add '?' to the ltrs array
+            next LINE unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} and push @ltrs, $l) or
+                               ( $check_letters =~ s/\?// and push @v, 0           and push @ltrs, '?') );
         }
 
-
-        push @results, { "trying" => $_, "values" => [ @v ] };
+        # append anonymous hash to the results array
+        push @results, { "trying" => $_, "values" => [ @v ] , "tiles_this_word" => [@ltrs] };
     }
     return \@results;
 }
@@ -364,7 +375,6 @@ sub _mathwork {
                     unless (defined $found{"$actual_letters,$_"}) {
                         $found{"$actual_letters,$_"} = _find($actual_letters, $length, $_);
                     }
-my $debug_key = "$actual_letters,$_";
                     for my $tryin (@{$found{"$actual_letters,$_"}}) {
 
                         my @values = @{ $tryin->{values} };
@@ -374,6 +384,7 @@ my $debug_key = "$actual_letters,$_";
                         my $score  = 0;
                         my $v      = 0;
                         my $trying = $tryin->{trying};
+                        my $tiles_this_word = join '', @{ $tryin->{tiles_this_word} || [''] };
 
                         # cycle thru each of the the crossing-words (vertical words that intersect the horizontal word I'm laying down)
                         for my $c ($col..$col + $length - 1 - $index) {
@@ -521,9 +532,12 @@ my $debug_key = "$actual_letters,$_";
                             tiles_used => $use,
                             word => $trying,
                             bingo => ($use==$BingoHandLength)+0,
-                            debug_key => $debug_key,
+                            tiles_this_word => $tiles_this_word,
+# TODO: working on wildcard indication somehow; next need to add $solution_data{$key}{tiles_consumed}
+#   my idea would be to go through letter by letter compared to $record (which has / at each position)
+#   and thus determine which tiles came from my hand
+                            tiles_consumed => undef,
                         };
-# TODO: need wildcard indication somehow
 
                     } # end for my tryin
                 } # end for split
