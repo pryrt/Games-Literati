@@ -364,7 +364,7 @@ sub _mathwork {
                     unless (defined $found{"$actual_letters,$_"}) {
                         $found{"$actual_letters,$_"} = _find($actual_letters, $length, $_);
                     }
-
+my $debug_key = "$actual_letters,$_";
                     for my $tryin (@{$found{"$actual_letters,$_"}}) {
 
                         my @values = @{ $tryin->{values} };
@@ -521,6 +521,7 @@ sub _mathwork {
                             tiles_used => $use,
                             word => $trying,
                             bingo => ($use==$BingoHandLength)+0,
+                            debug_key => $debug_key,
                         };
 # TODO: need wildcard indication somehow
 
@@ -529,7 +530,7 @@ sub _mathwork {
 
             } # end col
         } # end row
-        $use --;
+        $use --; # try next shorter word
     } # end use
 
 }

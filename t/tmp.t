@@ -1,13 +1,6 @@
 #!/usr/bin/perl
 ########################################################################
-# score_games.t:
-#   Send test boards (./game*) to each of the game engines, and search
-#       the text output for specific word/score pairs, which will
-#       be different based on which game engine is used.
-#   v0.042: add in get_solutions() structure parsing as well -- easiest
-#       to just add the checks to the already-defined games, rather
-#       than having a whole other file which implements similar
-#       checks to this one.
+# tmp.t: figure out how to deal with wilds in the structure
 ########################################################################
 
 use 5.006;
@@ -161,94 +154,11 @@ diag sprintf "__%04d__ debug_key = \"%s\"\n", __LINE__, $solutions{$key}{debug_k
 my $INFILE;
 
 ##### BOARD#1: compare scrabble/literati/wordswithfriends scores
-open $INFILE, '<', 'game1'      or die "open game1: $!";
-search_game('literati', $INFILE, 12,
-    { word=>'curses', dest=>'row 3', start=>'column 8', score=>8, bingo=>0, n_tiles=>5 },
-    { word=>'serums', dest=>'column 3', start=>'row 10', score=>24, bingo=>0, n_tiles=>5 },
-    { word=>'embroils', dest=>'row 14', start=>'column 6', score=>11, bingo=>0, n_tiles=>2 },
-    { word=>'assure', dest=>'row 0', start=>'column 3', score=>24, bingo=>0, n_tiles=>5 },
-    { word=>'assure', dest=>'column 2', start=>'row 1', score=>8, bingo=>0, n_tiles=>5 },
+open $INFILE, '<', 'game_w'      or die "open game_w: $!";
+search_game('wordswithfriends', $INFILE, 2,
+    { word=>'ant', dest=>'column 2', start=>'row 1', score=>2, n_tiles=>2 },
+    { word=>'an', dest=>'column 2', start=>'row 1', score=>1, n_tiles=>1 },
 );
-
-search_game('wordswithfriends', $INFILE, 12,
-    { word=>'curses', dest=>'row 3', start=>'column 8', score=>12, bingo=>0, n_tiles=>5 },
-    { word=>'serums', dest=>'column 3', start=>'row 10', score=>36, bingo=>0, n_tiles=>5 },
-    { word=>'embroils', dest=>'row 14', start=>'column 6', score=>17, bingo=>0, n_tiles=>2 },
-    { word=>'assure', dest=>'row 0', start=>'column 3', score=>27, bingo=>0, n_tiles=>5 },
-    { word=>'assure', dest=>'column 2', start=>'row 1', score=>9, bingo=>0, n_tiles=>5 },
-);
-
-search_game('scrabble', $INFILE, 12,
-    { word=>'curses', dest=>'row 3', start=>'column 8', score=>16, bingo=>0, n_tiles=>5 },
-    { word=>'serums', dest=>'column 3', start=>'row 10', score=>18, bingo=>0, n_tiles=>5 },
-    { word=>'embroils', dest=>'row 14', start=>'column 6', score=>36, bingo=>0, n_tiles=>2 },
-    { word=>'assure', dest=>'row 0', start=>'column 3', score=>21, bingo=>0 , n_tiles=>5},
-    { word=>'assure', dest=>'column 2', start=>'row 1', score=>12, bingo=>0, n_tiles=>5 },
-);
-close $INFILE;
-
-##### BOARD#1ss: compare superscrabble version of game1 (centered core with extra border
-open $INFILE, '<', 'game1ss'    or die "open game1ss: $!";
-search_game('superscrabble', $INFILE, 13,
-    { word=>'curses', dest=>'row 6', start=>'column 11', score=>16, bingo=>0, n_tiles=>5 },
-    { word=>'serums', dest=>'column 6', start=>'row 13', score=>18, bingo=>0, n_tiles=>5 },
-    { word=>'embroils', dest=>'row 17', start=>'column 9', score=>36, bingo=>0, n_tiles=>2 },
-    { word=>'assure', dest=>'row 3', start=>'column 6', score=>21, bingo=>0, n_tiles=>5 },
-    { word=>'assure', dest=>'column 5', start=>'row 4', score=>12, bingo=>0, n_tiles=>5 },
-);
-close $INFILE;
-
-##### BOARD#2: BUGFIX https://rt.cpan.org/Public/Bug/Display.html?id=29539  #### vertical 'in'
-open $INFILE, '<', 'game2'      or die "open game1: $!";
-search_game('literati', $INFILE, 2,
-    { word=>'in', dest=>'column 4', start=>'row 2', score=>6, n_tiles=>2 },
-    { word=>'in', dest=>'row 2', start=>'column 4', score=>3, n_tiles=>1 },
-);
-close $INFILE;
-
-##### BOARD#3: BUGFIX https://rt.cpan.org/Public/Bug/Display.html?id=29539  #### horizontal 'in'
-open $INFILE, '<', 'game3'      or die "open game1: $!";
-search_game('literati', $INFILE, 2,
-    { word=>'in', dest=>'row 4', start=>'column 2', score=>6, n_tiles=>2 },
-    { word=>'in', dest=>'column 2', start=>'row 4', score=>3, n_tiles=>1 },
-);
-close $INFILE;
-
-##### BOARD#4: SuperScrabble    # v0.032002-0.032005
-open $INFILE, '<', 'game4'    or die "open game4: $!";
-search_game('superscrabble', $INFILE, 4,
-    { word=>'in', dest=>'row 0', start=>'column 0', score=>8, bingo=>0, n_tiles=>1 },       # 4W
-    { word=>'in', dest=>'row 5', start=>'column 2', score=>5, bingo=>0, n_tiles=>1 },       # 4L
-    { word=>'in', dest=>'row 20', start=>'column 7', score=>6, bingo=>0, n_tiles=>1 },      # TW
-    { word=>'in', dest=>'row 1', start=>'column 16', score=>4, bingo=>0, n_tiles=>1 },      # TL
-);
-close $INFILE;
-
-##### BOARD#5: Bingo Check
-open $INFILE, '<', 'game5'    or die "open game5: $!";
-search_game('literati', $INFILE, 36,
-    { word=>'antlers', dest=>'row 7', start=>'column 1', score=>49, bingo=>1, n_tiles=>7 },     # all 5 should pass: look for bingo==true
-    { word=>'antler',  dest=>'row 7', start=>'column 6', score=>12, bingo=>0, n_tiles=>6 },     # force a fail on BINGO, because I am requiring bingo==0
-);
-
-search_game('wordswithfriends', $INFILE, 36,
-    { word=>'antlers', dest=>'row 7', start=>'column 1', score=>53, bingo=>1, n_tiles=>7 },     # all 5 should pass: look for bingo==true
-    { word=>'antler',  dest=>'row 7', start=>'column 6', score=>16, bingo=>0, n_tiles=>6 },     # force a fail on BINGO, because I am requiring bingo==0
-);
-
-search_game('scrabble', $INFILE, 36,
-    { word=>'antlers', dest=>'row 7', start=>'column 1', score=>66, bingo=>1, n_tiles=>7 },     # all 5 should pass: look for bingo==true
-    { word=>'antler',  dest=>'row 7', start=>'column 6', score=>14, bingo=>0, n_tiles=>6 },     # force a fail on BINGO, because I am requiring bingo==0
-);
-
-close $INFILE;
-
-open $INFILE, '<', 'game5ss'    or die "open game5: $!";
-search_game('superscrabble', $INFILE, 36,
-    { word=>'antlers', dest=>'row 10', start=>'column 4', score=>66, bingo=>1, n_tiles=>7 },     # all 5 should pass: look for bingo==true
-    { word=>'antler',  dest=>'row 10', start=>'column 9', score=>14, bingo=>0, n_tiles=>6 },     # force a fail on BINGO, because I am requiring bingo==0
-);
-close $INFILE;
 
 done_testing();
 1;
