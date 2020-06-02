@@ -14,7 +14,7 @@ environment:
     #- perl: 5.14.4.1
     ##failed##- perl: 5.12.3.0  # choco package points to outdated download URL
     ##failed##- perl: 5.12.3.1  # choco package points to outdated download URL
-    #- perl: 5.12.3.20180709    # predates cpanm
+    - perl: 5.12.3.20180709    # predates cpanm
     #- perl: 5.10.1.5           # predates cpanm # see if the cpan -i App::cpanminus will overcome that
 
 skip_tags: true
@@ -70,8 +70,8 @@ test_script:
   - echo test Perl=%perl%...
   - perl -le "print qq(test with perl v$])"
   - perl -V:ptrsize -V:ivsize -V:myuname
-  # echo parens to avoid appveyor parse error with %mymake% as first word of command
-  - (%mymake% test)
+  # cmd/c before %mymake% to avoid appveyor parse error with %mymake% as first word of command
+  - cmd/c %mymake% test
 
 artifacts:
   - path: cpanm.build.log
