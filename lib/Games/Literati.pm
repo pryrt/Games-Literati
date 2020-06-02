@@ -520,10 +520,18 @@ sub _mathwork {
 
                         print "($score)\t$solution\n";
 
-                        # store the solution, originally in the %solutions hash
+                        # store the solution in the original %solutions hash
                         my $key="$solution using $use tile(s)";
                         $solutions{$key} = $score;
-                        # in v0.042, add in the %solution_data hash, which makes it easier to grab data from the solution engine
+
+                        # v0.042: determine which tiles would be consumed by this solution:
+                        my $consumed = "";
+                        for my $offs ( 0 .. length($record)-1 ) {
+                            $consumed .= substr($tiles_this_word, $offs,1) if '/' eq substr($record,$offs,1);
+                        }
+
+                        # in v0.042, store the structured solution in the new %solution_data hash,
+                        #   which makes it easier to grab data from the solution engine
                         $solution_data{$key} = {
                             score => $score,
                             direction => $rotate ? "column" : "row",
@@ -533,10 +541,7 @@ sub _mathwork {
                             word => $trying,
                             bingo => ($use==$BingoHandLength)+0,
                             tiles_this_word => $tiles_this_word,
-# TODO: working on wildcard indication somehow; next need to add $solution_data{$key}{tiles_consumed}
-#   my idea would be to go through letter by letter compared to $record (which has / at each position)
-#   and thus determine which tiles came from my hand
-                            tiles_consumed => undef,
+                            tiles_consumed => $consumed,
                         };
 
                     } # end for my tryin
