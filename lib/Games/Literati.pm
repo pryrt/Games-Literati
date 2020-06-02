@@ -11,12 +11,14 @@ our @EXPORT_GAMES   = qw(scrabble superscrabble literati wordswithfriends);
 our @EXPORT_CONFIG  = qw($WordFile $MinimumWordLength);
 our @EXPORT_OTHER   = qw(find %valid);
 our @EXPORT_INFO    = qw(n_rows n_cols numTilesPerHand get_solutions);
+our @EXPORT_MISC    = qw(reduce_hand);
 our @EXPORT_CUSTOMIZER  = (@EXPORT_INFO, 'var_init');
-our @EXPORT_OK      = (@EXPORT_GAMES, @EXPORT_CONFIG, @EXPORT_OTHER, @EXPORT_INFO, @EXPORT_CUSTOMIZER);
+our @EXPORT_OK      = (@EXPORT_GAMES, @EXPORT_CONFIG, @EXPORT_OTHER, @EXPORT_INFO, @EXPORT_MISC, @EXPORT_CUSTOMIZER);
 our %EXPORT_TAGS    = (
     'allGames'      => [@EXPORT_GAMES],
     'configGame'    => [@EXPORT_CONFIG],
     'infoFunctions' => [@EXPORT_INFO],
+    'miscFunctions' => [@EXPORT_MISC],
     'customizer'    => [@EXPORT_CUSTOMIZER],
     'all'           => [@EXPORT_OK],
 );  # v0.032007: add the tags
@@ -972,6 +974,17 @@ sub _text_bonus_board { # v0.032010
     return $str;
 }
 
+sub reduce_hand {   # v0.042
+    my ($hand_tiles, $played_tiles) = @_;
+    my $stuck = '';
+    for my $tile ( split //, $played_tiles ) {
+        $hand_tiles =~ s/\Q$tile\E//
+            or $stuck .= $tile;
+    }
+    die "reduce_hand(): could not remove '$stuck' from hand tiles '$hand_tiles'" if length $stuck;
+    return $hand_tiles;
+}
+
 1;
 
 
@@ -1012,6 +1025,8 @@ Example linux-based one-liner:
 =item :customizer => C<:infoFunctions>, C<var_init()>
 
 =end comments
+
+=item :miscFunctions => C<reduce_hand()>
 
 =back
 
@@ -1328,7 +1343,13 @@ Returns a hash, whose elements are described in the example below
         ...                         # repeat for other solutions
     );
 
-=item find(I<\%args>) or find(I<$args>)
+=item reduce_hand( $hand_tiles, $played_tiles )
+
+Returns the new hand tiles, with the played tiles removed.
+
+    print reduce_hand( "rstlnec", "lest");  # prints "rnc"
+
+=item DEPRECATED: find(I<\%args>) or find(I<$args>)
 
 Finds possible valid words, based on the hashref provided.  When playing
 the automated game using the above functions, this is not needed, but it
