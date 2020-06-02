@@ -163,17 +163,14 @@ sub _find {
     my $letters  = shift;
     my $len      = shift;
     my $re       = shift;
-    my $check_letters;
     my @results;
-    my @v;
-    my @ltrs;
 
     LINE: for (@{$words->[$len]}) {       # for all the words of the right length
-        $check_letters = $letters;        # move the tiles being used into
+        my $check_letters = $letters;     # move the tiles being used into
 
         next LINE unless /^$re$/;         # stop looking at this word if it doesn't match the $re
 
-        @v = ();
+        my (@v, @ltrs);                   # by having narrower lexical scope, they get automatically reset each word
         for my $l (split //, $_) {
             # this is a fun one
             #   first line:
@@ -188,7 +185,6 @@ sub _find {
             next LINE unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} and push @ltrs, $l) or
                                ( $check_letters =~ s/\?// and push @v, 0           and push @ltrs, '?') );
         }
-
         # append anonymous hash to the results array
         push @results, { "trying" => $_, "values" => [ @v ] , "tiles_this_word" => [@ltrs] };
     }
@@ -355,14 +351,13 @@ sub _mathwork {
                 #   / slashes indicating empty spots that we will fill with our new tiles
                 #   t letters indicating the letter that's already in that space
                 my $str = "";
-                my $record;
                 map { $str .= $_ } @thisrow;    # aka $str = join('',@thisrow);
 
                 # split into pieces of the row: each piece is surrounded by empties
                 #   look for the piece that includes the contiguous slashes and letters
                 for (split (/\./, $str)) {
                     next unless /\//;           # if this piece of the row isn't part of our new word, skip it
-                    $record = $str = $_;
+                    my $record = $str = $_;
                     ~s/\//./g;
                     $str =~ s/\///g;
                     $actual_letters .= $str;
@@ -375,6 +370,8 @@ sub _mathwork {
                     unless (defined $found{"$actual_letters,$_"}) {
                         $found{"$actual_letters,$_"} = _find($actual_letters, $length, $_);
                     }
+
+                    # now score each of the found words
                     for my $tryin (@{$found{"$actual_letters,$_"}}) {
 
                         my @values = @{ $tryin->{values} };
@@ -385,7 +382,6 @@ sub _mathwork {
                         my $v      = 0;
                         my $trying = $tryin->{trying};
                         my $tiles_this_word = join '', @{ $tryin->{tiles_this_word} || [''] };
-
                         # cycle thru each of the the crossing-words (vertical words that intersect the horizontal word I'm laying down)
                         for my $c ($col..$col + $length - 1 - $index) {
                             $str = '';
