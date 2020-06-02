@@ -16,10 +16,10 @@ perl:
 os:
     - linux
 
-#matrix:
-#  include:
-#    - perl: "5.30"
-#      env: COVERAGE=1       # only report coverage to coveralls for this version of perl
+matrix:
+  include:
+    - perl: "5.30"
+      env: COVERAGE=1       # only report coverage to coveralls for this version of perl
 
 
 notifications:

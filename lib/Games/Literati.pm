@@ -114,7 +114,6 @@ sub check {
     for my $w (@wordlist) {
         if (exists($valid{$w}) && ($valid{$w} == 1)) {
             print qq|"$w" is valid.\n|;
-            return 1;
         }
         else {
             print qq|"$w" is invalid.\n|;
@@ -137,7 +136,6 @@ sub find {      # deprecated
     $max_len ||= 7;
 
     croak "Not enough letters.\n" unless (length($letters) > 1);
-
 
     LINE: for (keys %valid) {
         $len = length $_;
