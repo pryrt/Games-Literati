@@ -3,7 +3,7 @@ use warnings;
 use strict;
 use Carp;
 
-use 5.006;
+use 5.008;
 require Exporter;
 
 our @ISA            = qw(Exporter);

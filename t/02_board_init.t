@@ -6,7 +6,7 @@
 # v0.042: add in n_rows, n_cols, numTilesPerHand testing
 ########################################################################
 
-use 5.006;
+use 5.008;
 
 use warnings;
 use strict;
