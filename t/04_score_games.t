@@ -100,7 +100,6 @@ sub search_game($$@) {
         (undef, my $s) = (split ' ', $start);                               # column or row
         $expected_solution->{row} = ($s,$d)[$expected_solution->{direction} eq 'row']; # identify based on direction
         $expected_solution->{col} = ($d,$s)[$expected_solution->{direction} eq 'row']; # identify based on direction
-diag sprintf ".t:__%04d__ tiles_this_word = \"%s\", consumed = \"%s\"\n", __LINE__, $solutions{$key}{tiles_this_word}, $solutions{$key}{tiles_consumed};
         is_deeply $solutions{$key}, $expected_solution, "__${tsrc}.".__LINE__."__ ".'... with correct solution{$key} hash' or BAIL_OUT "temporary";
 
         # now parse the printout to make sure it matches
