@@ -76,7 +76,8 @@ test_script:
   - echo test Perl=%perl%...
   - perl -le "print qq(test with perl v$])"
   - perl -V:ptrsize -V:ivsize -V:myuname
-  - %mymake% test
+  - echo MyMake = %mymake%
+  - cmd /c %mymake% test
 
 artifacts:
   - path: cpanm.build.log
