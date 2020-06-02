@@ -1,9 +1,9 @@
 Changes
 lib/Games/Literati.pm
-Makefile.PL
-MANIFEST
-README
 LICENSE
+Makefile.PL
+MANIFEST			This list of files
+README
 t/01_import_wordlist.t
 t/02_board_init.t
 t/03_input_processing.t
@@ -17,5 +17,6 @@ t/game4
 t/game5
 t/game5ss
 t/game_i
+t/game_w
 t/wordlist
 t/wordlist.2
