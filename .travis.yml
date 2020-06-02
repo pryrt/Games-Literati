@@ -35,8 +35,8 @@ before_install:
   - cd $BUILD_DIR             # $BUILD_DIR is set by the build-dist command
 
 install:
-  - cpan-install Devel::Cover
-  - cpan-install Devel::Cover::Report::Coveralls
+  #- cpan-install Devel::Cover
+  #- cpan-install Devel::Cover::Report::Coveralls
   - cpan-install --deps       # installs prereqs, including recommends
   - cpan-install --coverage   # installs converage prereqs, if enabled
 
@@ -44,8 +44,6 @@ before_script:
   - coverage-setup
 
 script:
-  - setenv
-  - set
   - prove -lrv $(test-dirs)
 
 after_success:
