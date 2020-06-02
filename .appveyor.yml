@@ -59,15 +59,9 @@ install:
 build_script:
   - echo build using Perl=%perl%...
   - perl -le "print qq(build with perl v$])"
-  ## make: but don't want to have to know whether strawberry is using dmake, gmake, or futuremake
   - perl Makefile.PL
   - FOR /F "tokens=* USEBACKQ" %%F IN (`perl -MConfig -e "print $Config{make}"`) DO ( SET mymake=%%F )
   - echo MyMake = %mymake%
-  #- if exist "Makefile"    (perl -MConfig -le "system $Config{make}")
-  #- if exist "Makefile"    (perl -MConfig -le "print qq($Config{make} test)" > mytest.bat) ELSE ( echo prove -l t > mytest.bat)
-  # checking whether I need %%F or %F
-  #- echo rem verbose test >  mytest.bat
-  #- echo prove -vl t      >> mytest.bat
 
 after_build:
   - IF EXIST "c:\users\appveyor\.cpanm\work\" (MOVE /Y c:\users\appveyor\.cpanm\work .)
@@ -76,8 +70,8 @@ test_script:
   - echo test Perl=%perl%...
   - perl -le "print qq(test with perl v$])"
   - perl -V:ptrsize -V:ivsize -V:myuname
-  - echo MyMake = %mymake%
-  - echo %mymake% & %mymake% test & rem echo first to avoid appveyor parse error
+  # echo parens to avoid appveyor parse error with %mymake% as first word of command
+  - (%mymake% test)
 
 artifacts:
   - path: cpanm.build.log
