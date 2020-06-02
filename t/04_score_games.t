@@ -64,8 +64,8 @@ sub search_game($$@) {
 
     # v0.042: add in
     my %solutions = get_solutions();
-    is scalar %Games::Literati::solutions, $nSolutions, "$gamename(): \%Games::Literati::solutions hash returns right number of solutions";
-    is scalar %solutions, $nSolutions, "$gamename(): get_solutions returns right number of solutions";
+    is scalar keys %Games::Literati::solutions, $nSolutions, "$gamename(): \%Games::Literati::solutions hash returns right number of solutions";
+    is scalar keys %solutions, $nSolutions, "$gamename(): get_solutions returns right number of solutions";
 
     # return to beginning of input file, and get the letters as the last line of the input file
     seek($fh, 0, 0);
