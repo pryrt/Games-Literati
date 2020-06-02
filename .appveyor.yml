@@ -77,7 +77,7 @@ test_script:
   - perl -le "print qq(test with perl v$])"
   - perl -V:ptrsize -V:ivsize -V:myuname
   - echo MyMake = %mymake%
-  - cmd /c %mymake% test
+  - echo %mymake% & %mymake% test & rem echo first to avoid appveyor parse error
 
 artifacts:
   - path: cpanm.build.log
