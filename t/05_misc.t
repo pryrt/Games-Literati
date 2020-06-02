@@ -5,7 +5,7 @@
 #       make sure that it will shrink the hand_tile string
 ########################################################################
 
-use 5.006;
+use 5.008;
 
 use warnings;
 use strict;

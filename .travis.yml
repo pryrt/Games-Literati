@@ -11,16 +11,15 @@ perl:
     #- "5.14"
     #- "5.12"
     #- "5.10"
-    #- "5.8"
-    #- "5.6"
+    - "5.8"
 
 os:
     - linux
 
-matrix:
-  include:
-    - perl: "5.30"
-      env: COVERAGE=1       # only report coverage to coveralls for this version of perl
+#matrix:
+#  include:
+#    - perl: "5.30"
+#      env: COVERAGE=1       # only report coverage to coveralls for this version of perl
 
 
 notifications:
