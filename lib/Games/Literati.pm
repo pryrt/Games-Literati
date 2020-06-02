@@ -1303,13 +1303,16 @@ Returns number of tiles in a full hand for the most recent game type
 
 =item get_solutions()
 
-Returns a hash
+Returns a hash, whose elements are described in the example below
 
     %solutions = get_solutions();
 
     # equivalent to
+
     %solutions = (
-        $key => {                   # [string]: the string that is printed; it's a really bad idea for the key, but it keeps things consistent with the old %Games::Literati::solutions keys
+        $key => {                   # [string]: the string that is printed;
+                                    #           it's a really bad idea for the key, but it keeps things
+                                    #           consistent with the old %Games::Literati::solutions keys
             word => $word,          # [string]: the word being played
             tiles_used => $ntiles,  # [number]: the _number_ of tiles used
             score => $score,        # [number]: the score (equivalent to $Games::Literati::solutions{$key})
@@ -1317,7 +1320,14 @@ Returns a hash
             row => $row,            # [number]: the row number for the start of the word (0-based)
             col => $col,            # [number]: the column number for start of the word (0-based)
             bingo => $flag,         # [boolean]: whether this word was a BINGO or not
-                                    # TODO: need wild indicators
+            tiles_this_word => $tiles_this_word,
+                                    # [string]: Shows the tiles for this word, both those from the board and
+                                    #           those from your hand.  Useful for determining placement of wild
+                                    #           tiles
+            tiles_consumed => $consumed,
+                                    # [string]: Shows the tiles from your hand that were used for this play
+                                    #           (a subset of the tiles from tiles_this_word), which can be used
+                                    #           to remove the tiles from your hand that were played this turn
         },
         ...                         # repeat for other solutions
     );
