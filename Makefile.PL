@@ -58,4 +58,53 @@ require 5.008;
     }
 }
 
+
+sub MY::postamble {
+    my (undef,%h) = @_;
+    #require Data::Dumper;
+    #print STDERR Data::Dumper->Dump([\%h], [qw(mm_args{postamble})]);
+    return <<'POSTAMBLE';
+# TEST_D is used to test for the existence of a directory
+TEST_D = $(ABSPERLRUN) -MExtUtils::Command -e test_d --
+
+# run a test coverage report
+testcover ::
+	$(NOECHO) cover -test -report html
+
+# run author-tests on the original
+authtest ::
+	$(TEST_D) xt && $(MAKE) test TEST_FILES='xt/*.t'
+
+# run author-tests on the distribution
+distauthtest :: disttest
+	cd $(DISTVNAME) && $(TEST_D) xt && $(MAKE) test TEST_FILES='xt/*.t'
+
+# addition to realclean: also delete coverage database, if testcover was run
+realclean ::
+	$(NOECHO) ( $(TEST_D) cover_db && $(RM_RF) cover_db ) || $(ECHO) realclean:: skip "rm -rf cover_db"
+	$(NOECHO) ( $(TEST_F) LICENSE.pod && $(RM_RF) LICENSE.pod ) || $(ECHO) realclean:: LICENSE.pod intermediary
+	$(NOECHO) ( $(TEST_F) README.pod && $(RM_RF) README.pod ) || $(ECHO) realclean:: README.pod intermediary
+	$(NOECHO) ( $(TEST_F) MYMETA.json.lock && $(RM_RF) MYMETA.json.lock ) || $(ECHO) realclean:: MYMETA.json.lock temp file
+
+# veryclean: runs realclean, then deletes .bak, .old, .orig, and similar
+
+# auto-generate the README from the lib/Games/Literati.pm
+README.md :: lib/Games/Literati.pm Makefile.PL
+	$(PERL) -MPod::Simple::Select -e 'my $$p = Pod::Simple::Select->new();$$p->output_file(qq(README.pod));$$p->select({head1 => [qq(NAME),qq(SYNOPSIS),qq(DESCRIPTION),qq(LIMITATIONS),qq(INSTALLATION),qq(TODO),qq(AUTHOR),qq(COPYRIGHT),qq(LICENSE)]});$$p->parse_file(qq(lib/Games/Literati.pm));'
+	pod2markdown README.pod README.md
+	$(RM_F) README.pod
+
+# auto-generate the LICENSE file from the lib/Games/Literati.pm
+LICENSE :: lib/Games/Literati.pm Makefile.PL
+	$(PERL) -MPod::Simple::Select -e 'my $$p = Pod::Simple::Select->new();$$p->output_file(qq(LICENSE.pod));$$p->select({head1 => [qw/AUTHOR COPYRIGHT LICENSE/]});$$p->parse_file(qq(lib/Games/Literati.pm));'
+	pod2text LICENSE.pod LICENSE
+	$(RM_F) LICENSE.pod
+
+docs :: README.md LICENSE manifest
+
+POSTAMBLE
+}
+
+
+
 WriteMakefile( %mm_args );
