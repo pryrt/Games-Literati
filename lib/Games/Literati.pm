@@ -10,23 +10,26 @@ our @ISA            = qw(Exporter);
 our @EXPORT_GAMES   = qw(scrabble superscrabble literati wordswithfriends);
 our @EXPORT_CONFIG  = qw($WordFile $MinimumWordLength);
 our @EXPORT_OTHER   = qw(find %valid);
-our @EXPORT_INFO    = qw(n_rows n_cols numTilesPerHand);
+our @EXPORT_INFO    = qw(n_rows n_cols numTilesPerHand get_solutions);
+our @EXPORT_MISC    = qw(reduce_hand);
 our @EXPORT_CUSTOMIZER  = (@EXPORT_INFO, 'var_init');
-our @EXPORT_OK      = (@EXPORT_GAMES, @EXPORT_CONFIG, @EXPORT_OTHER, @EXPORT_INFO, @EXPORT_CUSTOMIZER);
+our @EXPORT_OK      = (@EXPORT_GAMES, @EXPORT_CONFIG, @EXPORT_OTHER, @EXPORT_INFO, @EXPORT_MISC, @EXPORT_CUSTOMIZER);
 our %EXPORT_TAGS    = (
     'allGames'      => [@EXPORT_GAMES],
     'configGame'    => [@EXPORT_CONFIG],
     'infoFunctions' => [@EXPORT_INFO],
+    'miscFunctions' => [@EXPORT_MISC],
     'customizer'    => [@EXPORT_CUSTOMIZER],
     'all'           => [@EXPORT_OK],
 );  # v0.032007: add the tags
 
-our $VERSION = 0.041;
+our $VERSION = 0.042;
 our %valid = ();
 our @bonus;
 our @onboard;
 our %values;
 our %solutions;
+our %solution_data;
 our $words;
 our $bingo_bonus;
 our @wilds;
@@ -74,6 +77,7 @@ sub _max_row() { return $BoardRows-1; }
 sub _center_col() { return _max_col()/2; }  # v0.032003
 sub _center_row() { return _max_row()/2; }  # v0.032003
 sub numTilesPerHand() { return $BingoHandLength; }   # v0.032005
+sub get_solutions() { return %solution_data; } # v0.042
 
 sub var_init {
     set_rows($_[0]) if (defined $_[0]);
@@ -85,6 +89,7 @@ sub var_init {
     undef $words;
     undef @bonus;
     undef %solutions;   # v0.032002 = prevents accidentally combining solution sets from multiple games
+    undef %solution_data;   # v0.042 = needs same prevention
 
     foreach my $r (0.._max_row) {
         foreach my $c (0.._max_col) {
@@ -116,7 +121,7 @@ sub check {
     }
 }
 
-sub find {
+sub find {      # deprecated
     no warnings;
     my $args     = shift;
     my $letters  = $args->{letters};
@@ -160,23 +165,30 @@ sub _find {
     my $letters  = shift;
     my $len      = shift;
     my $re       = shift;
-    my $check_letters;
     my @results;
-    my @v;
 
-  LINE: for (@{$words->[$len]}) {
-      $check_letters = $letters;
+    LINE: for (@{$words->[$len]}) {       # for all the words of the right length
+        my $check_letters = $letters;     # move the tiles being used into
 
-      next LINE unless /^$re$/;
+        next LINE unless /^$re$/;         # stop looking at this word if it doesn't match the $re
 
-      @v = ();
-      for my $l (split //, $_) {
-            next LINE unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} ) or
-                               ( $check_letters =~ s/\?// and push @v, 0 ) );
+        my (@v, @ltrs);                   # by having narrower lexical scope, they get automatically reset each word
+        for my $l (split //, $_) {
+            # this is a fun one
+            #   first line:
+            #       1) if you can take $l out of check-letters (once), then
+            #       2) push its value into @v,
+            #       3) [DEBUG:] then add it to the ltrs array
+            #   OR
+            #   second line:
+            #       1) if you can take '?' out of check-letters (once), then
+            #       2) push its value (0) into @v,
+            #       3) [DEBUG:] then add '?' to the ltrs array
+            next LINE unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} and push @ltrs, $l) or
+                               ( $check_letters =~ s/\?// and push @v, 0           and push @ltrs, '?') );
         }
-
-
-        push @results, { "trying" => $_, "values" => [ @v ] };
+        # append anonymous hash to the results array
+        push @results, { "trying" => $_, "values" => [ @v ] , "tiles_this_word" => [@ltrs] };
     }
     return \@results;
 }
@@ -341,14 +353,13 @@ sub _mathwork {
                 #   / slashes indicating empty spots that we will fill with our new tiles
                 #   t letters indicating the letter that's already in that space
                 my $str = "";
-                my $record;
                 map { $str .= $_ } @thisrow;    # aka $str = join('',@thisrow);
 
                 # split into pieces of the row: each piece is surrounded by empties
                 #   look for the piece that includes the contiguous slashes and letters
                 for (split (/\./, $str)) {
                     next unless /\//;           # if this piece of the row isn't part of our new word, skip it
-                    $record = $str = $_;
+                    my $record = $str = $_;
                     ~s/\//./g;
                     $str =~ s/\///g;
                     $actual_letters .= $str;
@@ -362,6 +373,7 @@ sub _mathwork {
                         $found{"$actual_letters,$_"} = _find($actual_letters, $length, $_);
                     }
 
+                    # now score each of the found words
                     for my $tryin (@{$found{"$actual_letters,$_"}}) {
 
                         my @values = @{ $tryin->{values} };
@@ -371,7 +383,7 @@ sub _mathwork {
                         my $score  = 0;
                         my $v      = 0;
                         my $trying = $tryin->{trying};
-
+                        my $tiles_this_word = join '', @{ $tryin->{tiles_this_word} || [''] };
                         # cycle thru each of the the crossing-words (vertical words that intersect the horizontal word I'm laying down)
                         for my $c ($col..$col + $length - 1 - $index) {
                             $str = '';
@@ -505,14 +517,37 @@ sub _mathwork {
                             ($use == $BingoHandLength ? "(BINGO!!!!)" : "");  # v0.032005 = configurable
 
                         print "($score)\t$solution\n";
-                        $solutions{"$solution using $use tile(s)"} = $score;
+
+                        # store the solution in the original %solutions hash
+                        my $key="$solution using $use tile(s)";
+                        $solutions{$key} = $score;
+
+                        # v0.042: determine which tiles would be consumed by this solution:
+                        my $consumed = "";
+                        for my $offs ( 0 .. length($record)-1 ) {
+                            $consumed .= substr($tiles_this_word, $offs,1) if '/' eq substr($record,$offs,1);
+                        }
+
+                        # in v0.042, store the structured solution in the new %solution_data hash,
+                        #   which makes it easier to grab data from the solution engine
+                        $solution_data{$key} = {
+                            score => $score,
+                            direction => $rotate ? "column" : "row",
+                            row => ($rotate ? $col : $row), # if it's in the rotate try, swap row and column
+                            col => ($rotate ? $row : $col), # if it's in the rotate try, swap row and column
+                            tiles_used => $use,
+                            word => $trying,
+                            bingo => ($use==$BingoHandLength)+0,
+                            tiles_this_word => $tiles_this_word,
+                            tiles_consumed => $consumed,
+                        };
 
                     } # end for my tryin
                 } # end for split
 
             } # end col
         } # end row
-        $use --;
+        $use --; # try next shorter word
     } # end use
 
 }
@@ -939,6 +974,17 @@ sub _text_bonus_board { # v0.032010
     return $str;
 }
 
+sub reduce_hand {   # v0.042
+    my ($hand_tiles, $played_tiles) = @_;
+    my $stuck = '';
+    for my $tile ( split //, $played_tiles ) {
+        $hand_tiles =~ s/\Q$tile\E//
+            or $stuck .= $tile;
+    }
+    die "reduce_hand(): could not remove '$stuck' from hand tiles '$hand_tiles'" if length $stuck;
+    return $hand_tiles;
+}
+
 1;
 
 
@@ -972,13 +1018,15 @@ Example linux-based one-liner:
 
 =item :configGame => C<$WordFile>, C<$MinimumWordLength>
 
-=item :infoFunctions => C<n_rows()>, C<n_cols()>, C<numTilesPerHand()>
+=item :infoFunctions => C<n_rows()>, C<n_cols()>, C<numTilesPerHand()>, C<get_solutions()>
 
 =begin comments
 
 =item :customizer => C<:infoFunctions>, C<var_init()>
 
 =end comments
+
+=item :miscFunctions => C<reduce_hand()>
 
 =back
 
@@ -1254,7 +1302,54 @@ any tiles.
 Thus, specifying C<literati(3,5)> will restrict the computer Literati
 player to using 3, 4, or 5 tiles on this turn.
 
-=item find(I<\%args>) or find(I<$args>)
+=item n_rows()
+
+=item n_cols()
+
+Returns number of rows or columns for the most recent game type
+
+=item numTilesPerHand()
+
+Returns number of tiles in a full hand for the most recent game type
+
+=item get_solutions()
+
+Returns a hash, whose elements are described in the example below
+
+    %solutions = get_solutions();
+
+    # equivalent to
+
+    %solutions = (
+        $key => {                   # [string]: the string that is printed;
+                                    #           it's a really bad idea for the key, but it keeps things
+                                    #           consistent with the old %Games::Literati::solutions keys
+            word => $word,          # [string]: the word being played
+            tiles_used => $ntiles,  # [number]: the _number_ of tiles used
+            score => $score,        # [number]: the score (equivalent to $Games::Literati::solutions{$key})
+            direction => $dir,      # [string]: either 'column' or 'row'
+            row => $row,            # [number]: the row number for the start of the word (0-based)
+            col => $col,            # [number]: the column number for start of the word (0-based)
+            bingo => $flag,         # [boolean]: whether this word was a BINGO or not
+            tiles_this_word => $tiles_this_word,
+                                    # [string]: Shows the tiles for this word, both those from the board and
+                                    #           those from your hand.  Useful for determining placement of wild
+                                    #           tiles
+            tiles_consumed => $consumed,
+                                    # [string]: Shows the tiles from your hand that were used for this play
+                                    #           (a subset of the tiles from tiles_this_word), which can be used
+                                    #           to remove the tiles from your hand that were played this turn
+        },
+        ...                         # repeat for other solutions
+    );
+
+=item reduce_hand( $hand_tiles, $played_tiles )
+
+Returns the new hand tiles, with the played tiles removed.
+
+    print reduce_hand( "rstlnec", "lest");  # prints "rnc"
+
+=item DEPRECATED: find(I<\%args>) or find(I<$args>)
 
 Finds possible valid words, based on the hashref provided.  When playing
 the automated game using the above functions, this is not needed, but it
@@ -1495,8 +1590,7 @@ define the game.  Pattern it similar to the following:
 
 =head1 BUGS AND FEATURE REQUESTS
 
-Please report any bugs or feature requests emailing C<bug-Games-Literati AT rt.cpan.org>
-or thru the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=Games-Literati>.
+Please report any bugs or feature requests thru the web interface at L<https://github.com/pryrt/Games-Literati/issues>.
 
 A simple interface (with examples) for play your own custom grid is in the works.  Studying
 the source code may point you in the right direction if you want a custom grid before the
@@ -1511,7 +1605,7 @@ and made bug fixes.
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright (c) 2003, Chicheng Zhang.  Copyright (C) 2016,2019 by Peter C. Jones
+Copyright (c) 2003, Chicheng Zhang.  Copyright (C) 2016,2019,2020 by Peter C. Jones
 
 This is free software; you can redistribute it and/or modify it under the same terms as the Perl 5 programming language system itself.
 
