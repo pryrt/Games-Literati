@@ -1,10 +1,10 @@
 Changes
+Games-Literati-0.042.tar.gz
 lib/Games/Literati.pm
 LICENSE
 Makefile.PL
 MANIFEST			This list of files
 README.md
-README.pod
 RELEASE.md
 t/01_import_wordlist.t
 t/02_board_init.t
@@ -24,3 +24,4 @@ t/game_w
 t/legacy.t
 t/wordlist
 t/wordlist.2
+xt/00-sign.t

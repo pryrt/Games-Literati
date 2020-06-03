@@ -56,6 +56,9 @@ require 5.008;
             'IO::String' => 0,
         };
     }
+    if( $ExtUtils::MakeMaker::VERSION >= '6.18' ) {
+        $mm_args{SIGN} = 1 if MM->can('signature_target') && $ENV{MM_SIGN_DIST};
+    }
 }
 
 
