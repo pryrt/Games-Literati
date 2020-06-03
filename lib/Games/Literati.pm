@@ -112,7 +112,7 @@ sub var_init {
 sub check {
     my @wordlist    = @{ pop @_ };
     for my $w (@wordlist) {
-        if ($valid{$w} == 1) {
+        if (exists($valid{$w}) && ($valid{$w} == 1)) {
             print qq|"$w" is valid.\n|;
         }
         else {
@@ -136,7 +136,6 @@ sub find {      # deprecated
     $max_len ||= 7;
 
     croak "Not enough letters.\n" unless (length($letters) > 1);
-
 
     LINE: for (keys %valid) {
         $len = length $_;

@@ -11,6 +11,11 @@ use warnings;
 use strict;
 use Test::More tests => 3;
 
+use IO::String;
+use File::Basename qw/dirname/;
+use Cwd qw/abs_path chdir/;
+BEGIN: { chdir(dirname($0)); }
+
 use Games::Literati 0.042 qw/:miscFunctions/;
 
 

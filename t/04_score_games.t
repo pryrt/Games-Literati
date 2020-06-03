@@ -100,7 +100,8 @@ sub search_game($$@) {
         (undef, my $s) = (split ' ', $start);                               # column or row
         $expected_solution->{row} = ($s,$d)[$expected_solution->{direction} eq 'row']; # identify based on direction
         $expected_solution->{col} = ($d,$s)[$expected_solution->{direction} eq 'row']; # identify based on direction
-        is_deeply $solutions{$key}, $expected_solution, "__${tsrc}.".__LINE__."__ ".'... with correct solution{$key} hash' or BAIL_OUT "temporary";
+        is_deeply $solutions{$key}, $expected_solution, "__${tsrc}.".__LINE__."__ ".'... with correct solution{$key} hash'
+            or do { diag explain $solutions{$key}, "\n"; diag explain $expected_solution, "\n"; BAIL_OUT "temporary" };
 
         # now parse the printout to make sure it matches
         @best = qw/0 dest word start bingo exact/;
@@ -245,7 +246,35 @@ search_game('wordswithfriends', $INFILE, 2,
     { tsrc=>__LINE__, word=>'ant'     , dest=>'column 2' , start=>'row 1'    , score=>2  ,             n_tiles=>2  , tiles_this_word=>'a?t'       , tiles_consumed=>'?t'      },
     { tsrc=>__LINE__, word=>'an'      , dest=>'column 2' , start=>'row 1'    , score=>1  ,             n_tiles=>1  , tiles_this_word=>'a?'        , tiles_consumed=>'?'       },
 );
+close $INFILE;
 
+##### BOARD#B: Make sure all bonuses are applied to both main word and cross-word
+open $INFILE, '<', 'game_b'    or die "open game5: $!";
+search_game('literati', $INFILE, 66,
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'row 10'   , start=>'column 7' , score=> 7 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'row 11'   , start=>'column 0' , score=>18 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'column 9' , start=>'row 12'   , score=>12 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'column 11', start=>'row 10'   , score=>10 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'column 11', start=>'row 0'    , score=>18 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+);
+
+search_game('wordswithfriends', $INFILE, 66,
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'row 11'   , start=>'column 0' , score=>24 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'column 11', start=>'row 0'    , score=>24 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+);
+
+search_game('scrabble', $INFILE, 66,
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'row 0'    , start=>'column 0' , score=>18 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'column 11', start=>'row 10'   , score=>12 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+);
+close $INFILE;
+
+
+#### TODO:
+# 1) Need to score a triple-letter in at least one of the game styles (and preferrably in all three)
+# 2) In the cross-words scoring, I need an example of new-tile on each of the modifier types, and figure out why
+#    there is never a non-modified score already
+# Note: looking at code, Scrabble is the only one with DL/DW/TL/TW: the others all use nL and nW
 
 done_testing();
 1;
