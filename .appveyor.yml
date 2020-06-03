@@ -1,8 +1,8 @@
 environment:
   matrix:
-    #- perl: default
-    #- perl: default
-    #  myBits: --FORCEx86
+    - perl: default
+    - perl: default
+      myBits: --FORCEx86
     #- perl: 5.28.2.1
     #- perl: 5.26.3.1
     #- perl: 5.24.4.1

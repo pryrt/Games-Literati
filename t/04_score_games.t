@@ -253,10 +253,19 @@ open $INFILE, '<', 'game_b'    or die "open game5: $!";
 search_game('literati', $INFILE, 66,
     { tsrc=>__LINE__, word=>'ant'     , dest=>'row 10'   , start=>'column 7' , score=> 7 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
     { tsrc=>__LINE__, word=>'ant'     , dest=>'row 11'   , start=>'column 0' , score=>18 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
-    { tsrc=>__LINE__, word=>'ant'     , dest=>'row 12'   , start=>'column 7' , score=> 8 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
-    { tsrc=>__LINE__, word=>'ant'     , dest=>'row 14'   , start=>'column 9' , score=> 9 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
     { tsrc=>__LINE__, word=>'ant'     , dest=>'column 9' , start=>'row 12'   , score=>12 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
     { tsrc=>__LINE__, word=>'ant'     , dest=>'column 11', start=>'row 10'   , score=>10 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'column 11', start=>'row 0'    , score=>18 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+);
+
+search_game('wordswithfriends', $INFILE, 66,
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'row 11'   , start=>'column 0' , score=>24 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'column 11', start=>'row 0'    , score=>24 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+);
+
+search_game('scrabble', $INFILE, 66,
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'row 0'    , start=>'column 0' , score=>18 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
+    { tsrc=>__LINE__, word=>'ant'     , dest=>'column 11', start=>'row 10'   , score=>12 ,             n_tiles=>3  , tiles_this_word=>'ant'       , tiles_consumed=>'ant'     },
 );
 close $INFILE;
 
