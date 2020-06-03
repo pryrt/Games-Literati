@@ -1,4 +1,4 @@
-use 5.010;
+use 5.008;
 use strict;
 use Test::More;
 
@@ -32,3 +32,5 @@ SKIP: {
 
     cmp_ok $ret, '==', Module::Signature::SIGNATURE_OK(), "Valid signature";
 }
+
+done_testing();
