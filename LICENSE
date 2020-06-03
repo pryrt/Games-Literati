@@ -1,8 +1,8 @@
 AUTHOR
     Chicheng Zhang "<chichengzhang AT hotmail.com>" wrote the original code.
 
-    Peter C. Jones "<petercj AT cpan.org>" has added various feature and
-    made bug fixes.
+    Peter C. Jones "<petercj AT cpan.org>" is the current maintainer, and
+    has added various features and made bug fixes.
 
 LICENSE AND COPYRIGHT
     Copyright (c) 2003, Chicheng Zhang. Copyright (C) 2016,2019,2020 by

@@ -35,7 +35,7 @@ require 5.008;
         };
         # automatically determine the versions for 'provides'; MM->parse_version exists as of MM v6.31, so not a problem with >= 6.46
         #   => this comes out right when printed... but MYMETA.* shows values that look wrong
-        my $v = MM->parse_version( $mm_args{VERSION_FROM} );
+        my $v = ''.MM->parse_version( $mm_args{VERSION_FROM} );
         $mm_args{META_MERGE}{provides} = {
             'Games::Literati' => {
                 file => 'lib/Games/Literati.pm',
@@ -90,7 +90,7 @@ realclean ::
 
 # auto-generate the README from the lib/Games/Literati.pm
 README.md :: lib/Games/Literati.pm Makefile.PL
-	$(PERL) -MPod::Simple::Select -e 'my $$p = Pod::Simple::Select->new();$$p->output_file(qq(README.pod));$$p->select({head1 => [qq(NAME),qq(SYNOPSIS),qq(DESCRIPTION),qq(LIMITATIONS),qq(INSTALLATION),qq(TODO),qq(AUTHOR),qq(COPYRIGHT),qq(LICENSE)]});$$p->parse_file(qq(lib/Games/Literati.pm));'
+	$(PERL) -MPod::Simple::Select -e 'my $$p = Pod::Simple::Select->new();$$p->output_file(qq(README.pod));$$p->select({head1 => [qq(NAME),qq(SYNOPSIS),qq(DESCRIPTION),qq(LIMITATIONS),qq(INSTALLATION),qq(TODO),qq(AUTHOR),qq(COPYRIGHT),qq(LICENSE)], head2=>[]});$$p->parse_file(qq(lib/Games/Literati.pm));'
 	pod2markdown README.pod README.md
 	$(RM_F) README.pod
 

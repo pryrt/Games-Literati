@@ -23,7 +23,7 @@ our %EXPORT_TAGS    = (
     'all'           => [@EXPORT_OK],
 );  # v0.032007: add the tags
 
-our $VERSION = 0.042;
+our $VERSION = '0.042';
 our %valid = ();
 our @bonus;
 our @onboard;
@@ -1599,8 +1599,21 @@ customization features are made public.
 
 Chicheng Zhang C<E<lt>chichengzhang AT hotmail.comE<gt>> wrote the original code.
 
-Peter C. Jones C<E<lt>petercj AT cpan.orgE<gt>> has added various feature
-and made bug fixes.
+Peter C. Jones C<E<lt>petercj AT cpan.orgE<gt>> is the current maintainer, and
+has added various features and made bug fixes.
+
+=begin html
+
+<a href="https://metacpan.org/pod/Games::Literati"><img src="https://img.shields.io/cpan/v/Games-Literati.svg?colorB=00CC00" alt="" title="metacpan"></a>
+<a href="http://matrix.cpantesters.org/?dist=Games-Literati"><img src="http://cpants.cpanauthors.org/dist/Games-Literati.png" alt="" title="cpan testers"></a>
+<a href="https://github.com/pryrt/Games-Literati/releases"><img src="https://img.shields.io/github/release/pryrt/Games-Literati.svg" alt="" title="github release"></a>
+<a href="https://github.com/pryrt/Games-Literati/issues"><img src="https://img.shields.io/github/issues/pryrt/Games-Literati.svg" alt="" title="issues"></a>
+<a href="https://ci.appveyor.com/project/pryrt/Games-Literati"><img src="https://ci.appveyor.com/api/projects/status/6gv0lnwj1t6yaykp/branch/master?svg=true" alt="" title="test coverage"></a>
+<a href="https://travis-ci.org/pryrt/Games-Literati"><img src="https://travis-ci.org/pryrt/Games-Literati.svg?branch=master" alt="travis build status" title="travis build status"></a>
+<a href='https://coveralls.io/github/pryrt/Games-Literati?branch=master'><img src='https://coveralls.io/repos/github/pryrt/Games-Literati/badge.svg?branch=master' alt='Coverage Status' title='Coverage Status' /></a>
+
+=end html
+
 
 =head1 LICENSE AND COPYRIGHT
 
