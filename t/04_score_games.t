@@ -275,9 +275,7 @@ close $INFILE;
 #                             3*0  1  2*3  2   1   4        14
 #                             3*4  1  2*3  2   1   0        22 => what it should have scored if it was `wallo?` with the wild pre-existing
 #                             3*4  1  2*3  2   1   4        26 => very wrong, what it actually scored
-
-
-local $TODO = "figuring out `?allow` vs `wallo?`"; # I think it should be a score of 14
+local $TODO = "figuring out `?allow` vs `wallo?`";
 open $INFILE, '<', 'game_14'    or die "open game5: $!";
 $Games::Literati::WordFile = './wordlist.14';
 search_game('wordswithfriends', $INFILE, 1,

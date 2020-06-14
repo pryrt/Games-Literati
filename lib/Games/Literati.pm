@@ -361,19 +361,24 @@ sub _mathwork {
                 #   . dots indicating empty spots on the board
                 #   / slashes indicating empty spots that we will fill with our new tiles
                 #   t letters indicating the letter that's already in that space
-                my $str = "";
-                map { $str .= $_ } @thisrow;    # aka $str = join('',@thisrow);
+                my $row_str = join '', @thisrow;    # v0.042_001: replace original `map { $str .= $_ } @thisrow;`, since join makes immediate sense to me; rename to row_str, to disambiguate the three different $str in this block!
+
 
                 # split into pieces of the row: each piece is surrounded by empties
                 #   look for the piece that includes the contiguous slashes and letters
-                for (split (/\./, $str)) {
+                for (split (/\./, $row_str)) {
                     next unless /\//;           # if this piece of the row isn't part of our new word, skip it
-                    my $record = $str = $_;
+                    (my $record) = $_;
                     ~s/\//./g;
-                    $str =~ s/\///g;
-                    $actual_letters .= $str;
-
                     my $length  = length $_;
+
+                    # v0.042_001: rename $str to $append_str, and do the append in a scope-block
+                    #   => helps with readability during debug
+                    {
+                        my $append_str = $record;
+                        $append_str =~ s{/}{}g;        # v0.042_001: change from s/\///g to avoid leaning matchsticks for readability
+                        $actual_letters .= $append_str;
+                    }
 
                     # look for real words based on the list of 'actual letters', which combines
                     #   the tiles in your hand with those letters already in this row.
@@ -396,24 +401,24 @@ sub _mathwork {
                         my $tiles_this_word = join '', @{ $tryin->{tiles_this_word} || [''] };
                         # cycle thru each of the the crossing-words (vertical words that intersect the horizontal word I'm laying down)
                         for my $c ($col..$col + $length - 1 - $index) {
-                            $str = '';
+                            my $cross_str = '';
 
                             # build up the full column-string one character at a time (vertical slice of the board)
                             # this will allow us to check for words that cross with our attempted word
                             for my $r (0.._max_row) {
                                 if ($r == $row) {       # if it's the current row, use the replacement character rather than the '.' that's in the real board
-                                    $str    .= substr ($record, $index, 1);
+                                    $cross_str    .= substr ($record, $index, 1);
                                     $replace = substr ($trying, $index, 1);     # this is the character from $trying that is taking the place of the slash for this column
                                     $v       = $values[$index++];
                                 }
                                 else {                  # otherwise use the character from the real board
-                                    $str .= $onboard[$r][$c];
+                                    $cross_str .= $onboard[$r][$c];
                                 }
                             } # r row loop
 
                             # find the sub-word of the column-string that is bounded by the array ends or a . on one side or another, and look for the
                             #   subword that contains the / (ie, the row where I'm laying down the new tiles
-                            for (split /\./, $str) {
+                            for (split /\./, $cross_str) {
                                 next unless /\//;                       # if this sub-word doesn't contain the new-tile row, continue
                                 next if (length($_) == 1);              # if this sub-word contains the new-tile row, but is only one character long, don't score the crossing-word for this column
                                 # if it makes it here, I actually found that I'm making a vertical word when I lay down my horizontal tiles, so start scoring
