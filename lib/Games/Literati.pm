@@ -23,7 +23,7 @@ our %EXPORT_TAGS    = (
     'all'           => [@EXPORT_OK],
 );  # v0.032007: add the tags
 
-our $VERSION = '0.042';
+our $VERSION = '0.042_001';
 our %valid = ();
 our @bonus;
 our @onboard;
@@ -171,8 +171,16 @@ sub _find {
 
         next LINE unless /^$re$/;         # stop looking at this word if it doesn't match the $re
 
+#my $w=0;
+#if($re eq '.....w' and $_ eq 'wallow') {
+#    printf STDERR "__%04d__ %s /^%s\$/ check='%s'\n", __LINE__, $_, $re, $check_letters;
+#    $w = $_;
+#    sleep(1);
+#}
+
         my (@v, @ltrs);                   # by having narrower lexical scope, they get automatically reset each word
         for my $l (split //, $_) {
+#printf STDERR "__%04d__\t\tw='%s', l='%s', v=(%s), ltrs=(%s)\n", __LINE__, $w, $l, join(',',@v), join(',',@ltrs) if $w;
             # this is a fun one
             #   first line:
             #       1) if you can take $l out of check-letters (once), then
@@ -186,6 +194,8 @@ sub _find {
             next LINE unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} and push @ltrs, $l) or
                                ( $check_letters =~ s/\?// and push @v, 0           and push @ltrs, '?') );
         }
+#printf STDERR "__%04d__\t\tw='%s', l='%s', v=(%s), ltrs=(%s)\n", __LINE__, $w, '-', join(',',@v), join(',',@ltrs) if $w;
+#sleep(1) if $w;
         # append anonymous hash to the results array
         push @results, { "trying" => $_, "values" => [ @v ] , "tiles_this_word" => [@ltrs] };
     }
@@ -369,6 +379,7 @@ sub _mathwork {
                     #   the tiles in your hand with those letters already in this row.
                     # also grab the point values of each of the tiles in the word
                     unless (defined $found{"$actual_letters,$_"}) {
+#printf STDERR "__%04d__ defined at (%2d,%2d) letters='%s', record='%s', actual='%s', _='%s'\n", __LINE__, $row, $col, $letters, $record, $actual_letters, $_ if $_ eq '.....w';
                         $found{"$actual_letters,$_"} = _find($actual_letters, $length, $_);
                     }
 

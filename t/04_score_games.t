@@ -22,7 +22,7 @@ use Cwd qw/abs_path chdir/;
 BEGIN: { chdir(dirname($0)); }
 
 use Games::Literati 0.042 qw/:allGames :infoFunctions/;
-sub SearchGameOut() { 0; }
+our $DEBUG_OUTPUT_GAMESEARCH = 0;
 
 sub run_game($$) {
     my $game = shift;
@@ -101,7 +101,7 @@ sub search_game($$@) {
         $expected_solution->{row} = ($s,$d)[$expected_solution->{direction} eq 'row']; # identify based on direction
         $expected_solution->{col} = ($d,$s)[$expected_solution->{direction} eq 'row']; # identify based on direction
         is_deeply $solutions{$key}, $expected_solution, "__${tsrc}.".__LINE__."__ ".'... with correct solution{$key} hash'
-            or do { diag explain $solutions{$key}, "\n"; diag explain $expected_solution, "\n"; BAIL_OUT "temporary" };
+            or do { diag "got => ", explain $solutions{$key}, "\n"; diag "exp => ", explain $expected_solution, "\n"; };#BAIL_OUT "temporary" };
 
         # now parse the printout to make sure it matches
         @best = qw/0 dest word start bingo exact/;
@@ -145,7 +145,7 @@ sub search_game($$@) {
         #print "\n";
     } # each pattern
 
-    print $gameout if SearchGameOut();
+    print("gameout =>\n", $gameout) if $DEBUG_OUTPUT_GAMESEARCH;
 }
 
 my $INFILE;
@@ -269,12 +269,22 @@ search_game('scrabble', $INFILE, 66,
 );
 close $INFILE;
 
+##### BOARD#14: Issue 14 = '/^.....w$/` should give '?allow' not 'wallo?' in words with friends
+# 0   [__][__][__][3W][__][__][3L][__][3L][__][__][3W][__][__][__] # 0   #
+#                              ?   a   l   l   o  [w ]
+#                             3*0  1  2*3  2   1   4        14
+#                             3*4  1  2*3  2   1   0        22 => what it should have scored if it was `wallo?` with the wild pre-existing
+#                             3*4  1  2*3  2   1   4        26 => very wrong, what it actually scored
 
-#### TODO:
-# 1) Need to score a triple-letter in at least one of the game styles (and preferrably in all three)
-# 2) In the cross-words scoring, I need an example of new-tile on each of the modifier types, and figure out why
-#    there is never a non-modified score already
-# Note: looking at code, Scrabble is the only one with DL/DW/TL/TW: the others all use nL and nW
+
+local $TODO = "figuring out `?allow` vs `wallo?`"; # I think it should be a score of 14
+open $INFILE, '<', 'game_14'    or die "open game5: $!";
+$Games::Literati::WordFile = './wordlist.14';
+search_game('wordswithfriends', $INFILE, 1,
+    { tsrc=>__LINE__, word=>'wallow'  , dest=>'row 0'    , start=>'column 6' , score=>14 ,             n_tiles=>5  , tiles_this_word=>'?allow'    , tiles_consumed=>'?allo'   },
+);
+close $INFILE;
+$Games::Literati::WordFile = './wordlist';
 
 done_testing();
 1;
