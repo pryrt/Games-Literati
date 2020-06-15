@@ -368,9 +368,9 @@ sub _mathwork {
                 #   look for the piece that includes the contiguous slashes and letters
                 for (split (/\./, $row_str)) {
                     next unless /\//;           # if this piece of the row isn't part of our new word, skip it
-                    (my $record) = $_;
-                    ~s/\//./g;
-                    my $length  = length $_;
+                    my $record = $_;
+                    (my $re_str = $_) =~ s{/}{.}g; # v0.042_001 rename and fix leaning-matchsticks
+                    my $length  = length $re_str;
 
                     # v0.042_001: rename $str to $append_str, and do the append in a scope-block
                     #   => helps with readability during debug
@@ -383,13 +383,14 @@ sub _mathwork {
                     # look for real words based on the list of 'actual letters', which combines
                     #   the tiles in your hand with those letters already in this row.
                     # also grab the point values of each of the tiles in the word
-                    unless (defined $found{"$actual_letters,$_"}) {
-#printf STDERR "__%04d__ defined at (%2d,%2d) letters='%s', record='%s', actual='%s', _='%s'\n", __LINE__, $row, $col, $letters, $record, $actual_letters, $_ if $_ eq '.....w';
-                        $found{"$actual_letters,$_"} = _find($actual_letters, $length, $_);
+                    my $key = "$actual_letters,$re_str"; # v0.042_001: create key variable to avoid re-creating string 3x
+                    unless (defined $found{$key}) {
+#printf STDERR "__%04d__ defined at (%2d,%2d) letters='%s', record='%s', actual='%s', re_str='%s'\n", __LINE__, $row, $col, $letters, $record, $actual_letters, $re_str if $re_str eq '.....w';
+                        $found{$key} = _find($actual_letters, $length, $re_str);
                     }
 
                     # now score each of the found words
-                    for my $tryin (@{$found{"$actual_letters,$_"}}) {
+                    for my $tryin (@{$found{$key}}) {
 
                         my @values = @{ $tryin->{values} };
                         my $index  = index ($record, "/");      # where the first tile I'm trying is located
