@@ -366,10 +366,10 @@ sub _mathwork {
 
                 # split into pieces of the row: each piece is surrounded by empties
                 #   look for the piece that includes the contiguous slashes and letters
-                for (split (/\./, $row_str)) {
-                    next unless /\//;           # if this piece of the row isn't part of our new word, skip it
-                    my $record = $_;
-                    (my $re_str = $_) =~ s{/}{.}g; # v0.042_001 rename and fix leaning-matchsticks
+                for my $row_piece (split (/\./, $row_str)) {
+                    next unless $row_piece =~ m{/};         # if this piece of the row isn't part of our new word, skip it
+                    my $record = $row_piece;
+                    (my $re_str = $row_piece) =~ s{/}{.}g;  # v0.042_001 rename and fix leaning-matchsticks
                     my $length  = length $re_str;
 
                     # v0.042_001: rename $str to $append_str, and do the append in a scope-block
