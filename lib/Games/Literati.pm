@@ -419,19 +419,19 @@ sub _mathwork {
 
                             # find the sub-word of the column-string that is bounded by the array ends or a . on one side or another, and look for the
                             #   subword that contains the / (ie, the row where I'm laying down the new tiles
-                            for (split /\./, $cross_str) {
-                                next unless /\//;                       # if this sub-word doesn't contain the new-tile row, continue
-                                next if (length($_) == 1);              # if this sub-word contains the new-tile row, but is only one character long, don't score the crossing-word for this column
+                            for my $col_piece (split /\./, $cross_str) {
+                                next unless $col_piece =~ m{/};         # if this sub-word doesn't contain the new-tile row, continue
+                                next if (length($col_piece) == 1);      # if this sub-word contains the new-tile row, but is only one character long, don't score the crossing-word for this column
                                 # if it makes it here, I actually found that I'm making a vertical word when I lay down my horizontal tiles, so start scoring
                                 my $t_score = 0;                        # "t" means temporary; in this block, t_score holds the score for the tiles already laid down in the vertical word
-                                my $vstart = $row - index($_, "/");     # the current vertical word ($_) starts at the board's row=$vstart
+                                my $vstart = $row - index($col_piece, "/");     # the current vertical word ($col_piece) starts at the board's row=$vstart
 
                                 # loop thru the already existing tiles in the crossing-word; add in their non-bonus score if they are not wild
                                 #   (non-bonus, because they were laid down in a previous turn, so their bonus has been used up)
-                                while (/(\w)/g) {
+                                while ($col_piece =~ /(\w)/g) {
                                     # BUGFIX (pcj): use vrow as the row of the current letter of the vertical word
                                     #   if it's a wild, 0 points, else add its non-bonus value
-                                    my $vrow = $vstart + pos() - 1;    # vstart is the start of the vertical word; pos is the 1-based position in the vertical word; -1 adjusts for the 1-based to get the row of the current \w character $1
+                                    my $vrow = $vstart + pos($col_piece) - 1;    # vstart is the start of the vertical word; pos is the 1-based position in the vertical word; -1 adjusts for the 1-based to get the row of the current \w character $1
                                     my ($wr,$wc) = ($rotate) ? ($vrow, $c) : ($c, $vrow);  # swap row and column for wilds[][] array, since wilds[][] wasn't transposed.
 
                                     unless ( $wilds[$vrow][$c] ) {
@@ -440,11 +440,11 @@ sub _mathwork {
 
 
                                 }; # end of vertical-word's real-letter score
-                                $_ =~ s{}{$replace};    # v0.042_001: remove leaning matchsticks
+                                $col_piece =~ s{}{$replace};    # v0.042_001: remove leaning matchsticks
 
                                 # if my vertical cross-word for this column is a valid word, continue scoring by adding the score for the new tile in this column,
                                 #   including bonuses activated by the new tile
-                                if ($valid{$_}) {
+                                if ($valid{$col_piece}) {
                                     if ($bonus[$row][$c] eq "TL") {
                                         $score += $t_score + $v * 3;
                                     }

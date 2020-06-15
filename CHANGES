@@ -1,5 +1,12 @@
 Revision history for Perl extension Games::Literati.
 
+0.042_001
+    - bugfix: tiles `lndlo?a` with re=/^.....w$/, finds `wallow` with tile order
+      `wallo?` despite `w` being fixed in last slot; should find `?allow` (#14)
+    - improve readability: while doing the bugfix, cleaned up some variable naming
+      (nested implicit $_ loops; three unrelated $str vars at nested lexical levels),
+      and cleaned up some leaning matchstick matches like `s/\///` to `s{/}{}`.
+
 0.042  Thu Jun  4 15:30:00 2020
     - Add get_solutions() to get structured solutions hash
     - improve test coverage
