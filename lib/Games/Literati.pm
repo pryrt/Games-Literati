@@ -166,38 +166,66 @@ sub _find {
     my $re       = shift;
     my @results;
 
-    LINE: for (@{$words->[$len]}) {       # for all the words of the right length
-        my $check_letters = $letters;     # move the tiles being used into
+    WORD: for my $word (@{$words->[$len]}) {        # for all the words of the right length
+        my $check_letters = $letters;               # move the tiles being used into
+        next WORD unless $word =~ /^$re$/;          # stop looking at this word if it doesn't match the $re
+        my (@v, @tiles_this_word, @tiles_consumed); # by having narrower lexical scope, they get automatically reset each word
 
-        next LINE unless /^$re$/;         # stop looking at this word if it doesn't match the $re
-
-#my $w=0;
-#if($re eq '.....w' and $_ eq 'wallow') {
-#    printf STDERR "__%04d__ %s /^%s\$/ check='%s'\n", __LINE__, $_, $re, $check_letters;
-#    $w = $_;
-#    sleep(1);
-#}
-
-        my (@v, @ltrs);                   # by having narrower lexical scope, they get automatically reset each word
-        for my $l (split //, $_) {
-#printf STDERR "__%04d__\t\tw='%s', l='%s', v=(%s), ltrs=(%s)\n", __LINE__, $w, $l, join(',',@v), join(',',@ltrs) if $w;
-            # this is a fun one
-            #   first line:
-            #       1) if you can take $l out of check-letters (once), then
-            #       2) push its value into @v,
-            #       3) [DEBUG:] then add it to the ltrs array
-            #   OR
-            #   second line:
-            #       1) if you can take '?' out of check-letters (once), then
-            #       2) push its value (0) into @v,
-            #       3) [DEBUG:] then add '?' to the ltrs array
-            next LINE unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} and push @ltrs, $l) or
-                               ( $check_letters =~ s/\?// and push @v, 0           and push @ltrs, '?') );
+        # v0.042_001: rework so it's more readable, and so that it never tries to use
+        #   swap a wild from the hand and an already-from-the-board tile that are both the
+        #   same letter in this word
+        POSITION: for my $p ( 0 .. length($word)-1) {
+            my $letter = substr $word, $p, 1;
+            my $board  = substr $re, $p, 1;
+            if ($board ne '.') {
+                # when the board tile is not a .,
+                # it is from the board, and thus not taken from the hand
+                # so the board tile is part of the word
+                push @tiles_this_word, $board;
+                # but _not_ taken from check_letters
+            } elsif ( $check_letters =~ s{$letter}{} ) {
+                # if the literal letter can be removed from the hand (check_letters),
+                # then save the letter's value for scoring
+                push @v, $values{$letter};
+                # and mark the letter as being used
+                push @tiles_this_word,  $letter;
+                # and mark the letter as consumed;
+                push @tiles_consumed, $letter;
+            } elsif ( $check_letters =~ s{\?}{} ) {
+                # if the wild tile can be removed from the hand (check_letters),
+                # then save the wild's value for scoring
+                push @v, 0;
+                # and mark the tile as being used
+                push @tiles_this_word,  '?';
+                # and mark the letter as consumed;
+                push @tiles_consumed, '?';
+            } else {
+                # this letter in the word is neither from the board nor from the hand,
+                # so this word is not valid
+                # thus, move on to next word without scoring it
+                next WORD;
+            }
         }
-#printf STDERR "__%04d__\t\tw='%s', l='%s', v=(%s), ltrs=(%s)\n", __LINE__, $w, '-', join(',',@v), join(',',@ltrs) if $w;
-#sleep(1) if $w;
-        # append anonymous hash to the results array
-        push @results, { "trying" => $_, "values" => [ @v ] , "tiles_this_word" => [@ltrs] };
+
+#         LETTER: for my $l (split //, $_) {
+#             # this is a fun one
+#             #   first line:
+#             #       1) if you can take $l out of check-letters (once), then
+#             #       2) push its value into @v,
+#             #       3) [DEBUG:] then add it to the ltrs array
+#             #   OR
+#             #   second line:
+#             #       1) if you can take '?' out of check-letters (once), then
+#             #       2) push its value (0) into @v,
+#             #       3) [DEBUG:] then add '?' to the ltrs array
+#             next WORD unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} and push @ltrs, $l) or
+#                                ( $check_letters =~ s/\?// and push @v, 0           and push @ltrs, '?') );
+#         }
+# #printf STDERR "__%04d__\t\tw='%s', l='%s', v=(%s), ltrs=(%s)\n", __LINE__, $w, '-', join(',',@v), join(',',@ltrs) if $w;
+# #sleep(1) if $w;
+        # since this word could be built using the board and hand tiles in appropriate positions,
+        # append an anonymous hash with this word, its values, and the _tiles_ in the word to the results array
+        push @results, { "trying" => $word, "values" => [ @v ] , "tiles_this_word" => [@tiles_this_word] };
     }
     return \@results;
 }
@@ -386,10 +414,15 @@ sub _mathwork {
                     my $key = "$actual_letters,$re_str"; # v0.042_001: create key variable to avoid re-creating string 3x
                     unless (defined $found{$key}) {
 #printf STDERR "__%04d__ defined at (%2d,%2d) letters='%s', record='%s', actual='%s', re_str='%s'\n", __LINE__, $row, $col, $letters, $record, $actual_letters, $re_str if $re_str eq '.....w';
-                        $found{$key} = _find($actual_letters, $length, $re_str);
+# TODO 2020-Jun-15: try $letters instead of $actual_letters, and call it $hand_tiles inside the function
+#   I don't think I need to separately include the $append_str and/or $record, because $re_str already encodes that info
+#   inside _find(), I want to step through the offset-index of $re_str; if it's literal '.' then take a tile from the hand,
+#   else keep the tile from the $re_str
+                        #$found{$key} = _find($actual_letters, $length, $re_str);
+                        $found{$key} = _find($letters, $length, $re_str);
                     }
 
-                    # now score each of the found words
+                    # now score each of the found words crossing the main word
                     for my $tryin (@{$found{$key}}) {
 
                         my @values = @{ $tryin->{values} };
