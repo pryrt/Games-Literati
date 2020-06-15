@@ -440,7 +440,7 @@ sub _mathwork {
 
 
                                 }; # end of vertical-word's real-letter score
-                                s/\//$replace/;
+                                $_ =~ s{}{$replace};    # v0.042_001: remove leaning matchsticks
 
                                 # if my vertical cross-word for this column is a valid word, continue scoring by adding the score for the new tile in this column,
                                 #   including bonuses activated by the new tile
