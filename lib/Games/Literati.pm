@@ -483,7 +483,7 @@ sub _mathwork {
                         my $cc = 0;
 
                         # this is the scoring for the word I just laid down
-                        for (split //, $trying) {
+                        for my $letter_to_score (split //, $trying) {
                             if ($onboard[$row][$col+$col_index] eq '.') {           # if new tile
                                 if ($bonus[$row][$col+$col_index] eq "TL") {
                                     $t_score += $values[$cc] * 3;
@@ -514,7 +514,7 @@ sub _mathwork {
                                 my ($wr, $wc) = ($row, $col + $col_index);
                                 ($wc, $wr) = ($wr, $wc) if $rotate; # swap row and column for wilds[][] array, since wilds[][] wasn't transposed.
                                 unless ($wilds[$wr][$wc]) {
-                                    $t_score += $values{$_};
+                                    $t_score += $values{$letter_to_score };
                                 }
                             } # end else already a tile there
                             $cc ++;
