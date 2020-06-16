@@ -23,7 +23,7 @@ our %EXPORT_TAGS    = (
     'all'           => [@EXPORT_OK],
 );  # v0.032007: add the tags
 
-our $VERSION = '0.042';
+our $VERSION = '0.042_001';
 our %valid = ();
 our @bonus;
 our @onboard;
@@ -164,30 +164,81 @@ sub _find {
     my $letters  = shift;
     my $len      = shift;
     my $re       = shift;
+    my $was_board = shift;
     my @results;
 
-    LINE: for (@{$words->[$len]}) {       # for all the words of the right length
-        my $check_letters = $letters;     # move the tiles being used into
+    WORD: for my $word (@{$words->[$len]}) {        # for all the words of the right length
+        my $check_letters = $letters;               # move the tiles being used into
+        next WORD unless $word =~ /^$re$/;          # stop looking at this word if it doesn't match the $re
+        my (@v, @tiles_this_word, @tiles_consumed); # by having narrower lexical scope, they get automatically reset each word
 
-        next LINE unless /^$re$/;         # stop looking at this word if it doesn't match the $re
+# my $w = ('c.....' eq $re) ? $was_board : '';
+# if($was_board) {
+# $check_letters = $letters . $was_board;
+#
+#         LETTER: for my $l (split //, $word) {
+#             # this is a fun one
+#             #   first line:
+#             #       1) if you can take $l out of check-letters (once), then
+#             #       2) push its value into @v,
+#             #       3) [DEBUG:] then add it to the ltrs array
+#             #   OR
+#             #   second line:
+#             #       1) if you can take '?' out of check-letters (once), then
+#             #       2) push its value (0) into @v,
+#             #       3) [DEBUG:] then add '?' to the ltrs array
+#             next WORD unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} and push @tiles_this_word, $l) or
+#                                ( $check_letters =~ s/\?// and push @v, 0           and push @tiles_this_word, '?') );
+#         }
+# printf STDERR "__%04d__\t\tw='%s', l='%s', re=/^%s\$/ v=(%s), ltrs=(%s)\n", __LINE__, $w, '-', $re, join(',',@v), join(',',@tiles_this_word) if $w;
+# $check_letters = $letters;
+# (@v, @tiles_this_word, @tiles_consumed) = ();
+# }
 
-        my (@v, @ltrs);                   # by having narrower lexical scope, they get automatically reset each word
-        for my $l (split //, $_) {
-            # this is a fun one
-            #   first line:
-            #       1) if you can take $l out of check-letters (once), then
-            #       2) push its value into @v,
-            #       3) [DEBUG:] then add it to the ltrs array
-            #   OR
-            #   second line:
-            #       1) if you can take '?' out of check-letters (once), then
-            #       2) push its value (0) into @v,
-            #       3) [DEBUG:] then add '?' to the ltrs array
-            next LINE unless ( ( $check_letters =~ s/$l// and push @v, $values{$l} and push @ltrs, $l) or
-                               ( $check_letters =~ s/\?// and push @v, 0           and push @ltrs, '?') );
+        # v0.042_001: rework so it's more readable, and so that it never tries to use
+        #   swap a wild from the hand and an already-from-the-board tile that are both the
+        #   same letter in this word
+        POSITION: for my $p ( 0 .. length($word)-1) {
+            my $letter = substr $word, $p, 1;
+            my $board  = substr $re, $p, 1;
+            if ($board ne '.') {
+                # when the board tile is not a .,
+                # it is from the board, and thus not taken from the hand
+                # so the board tile is part of the word
+
+                # still need its value
+                push @v, $values{$letter};
+
+                # and still need to store that I've used the letter
+                push @tiles_this_word, $board;
+                # but _not_ taken from check_letters
+            } elsif ( $check_letters =~ s{$letter}{} ) {
+                # if the literal letter can be removed from the hand (check_letters),
+                # then save the letter's value for scoring
+                push @v, $values{$letter};
+                # and mark the letter as being used
+                push @tiles_this_word,  $letter;
+                # and mark the letter as consumed;
+                push @tiles_consumed, $letter;
+            } elsif ( $check_letters =~ s{\?}{} ) {
+                # if the wild tile can be removed from the hand (check_letters),
+                # then save the wild's value for scoring
+                push @v, 0;
+                # and mark the tile as being used
+                push @tiles_this_word,  '?';
+                # and mark the letter as consumed;
+                push @tiles_consumed, '?';
+            } else {
+                # this letter in the word is neither from the board nor from the hand,
+                # so this word is not valid
+                # thus, move on to next word without scoring it
+                next WORD;
+            }
         }
-        # append anonymous hash to the results array
-        push @results, { "trying" => $_, "values" => [ @v ] , "tiles_this_word" => [@ltrs] };
+#printf STDERR "__%04d__\t\tw='%s', l='%s', re=/^%s\$/ v=(%s), ltrs=(%s), consumed=(%s)\n", __LINE__, $w, '-', $re, join(',',@v), join(',',@tiles_this_word) , join(',',@tiles_consumed) if $w;
+        # since this word could be built using the board and hand tiles in appropriate positions,
+        # append an anonymous hash with this word, its values, and the _tiles_ in the word to the results array
+        push @results, { "trying" => $word, "values" => [ @v ] , "tiles_this_word" => [@tiles_this_word] };
     }
     return \@results;
 }
@@ -351,29 +402,42 @@ sub _mathwork {
                 #   . dots indicating empty spots on the board
                 #   / slashes indicating empty spots that we will fill with our new tiles
                 #   t letters indicating the letter that's already in that space
-                my $str = "";
-                map { $str .= $_ } @thisrow;    # aka $str = join('',@thisrow);
+                my $row_str = join '', @thisrow;    # v0.042_001: replace original `map { $str .= $_ } @thisrow;`, since join makes immediate sense to me; rename to row_str, to disambiguate the three different $str in this block!
+
 
                 # split into pieces of the row: each piece is surrounded by empties
                 #   look for the piece that includes the contiguous slashes and letters
-                for (split (/\./, $str)) {
-                    next unless /\//;           # if this piece of the row isn't part of our new word, skip it
-                    my $record = $str = $_;
-                    ~s/\//./g;
-                    $str =~ s/\///g;
-                    $actual_letters .= $str;
+                for my $row_piece (split (/\./, $row_str)) {
+                    next unless $row_piece =~ m{/};         # if this piece of the row isn't part of our new word, skip it
+                    my $record = $row_piece;
+                    (my $re_str = $row_piece) =~ s{/}{.}g;  # v0.042_001 rename and fix leaning-matchsticks
+                    my $length  = length $re_str;
 
-                    my $length  = length $_;
+                    # v0.042_001: rename $str to $append_str, and do the append in a scope-block
+                    #   => helps with readability during debug
+                    {
+                        my $append_str = $record;
+                        $append_str =~ s{/}{}g;        # v0.042_001: change from s/\///g to avoid leaning matchsticks for readability
+                        $actual_letters .= $append_str;
+                    }
 
                     # look for real words based on the list of 'actual letters', which combines
                     #   the tiles in your hand with those letters already in this row.
                     # also grab the point values of each of the tiles in the word
-                    unless (defined $found{"$actual_letters,$_"}) {
-                        $found{"$actual_letters,$_"} = _find($actual_letters, $length, $_);
+                    my $key = "$actual_letters,$re_str"; # v0.042_001: create key variable to avoid re-creating string 3x
+                    unless (defined $found{$key}) {
+#printf STDERR "__%04d__ defined at (%2d,%2d) letters='%s', record='%s', actual='%s', re_str='%s'\n", __LINE__, $row, $col, $letters, $record, $actual_letters, $re_str if $re_str eq '.....w';
+# TODO 2020-Jun-15: try $letters instead of $actual_letters, and call it $hand_tiles inside the function
+#   I don't think I need to separately include the $append_str and/or $record, because $re_str already encodes that info
+#   inside _find(), I want to step through the offset-index of $re_str; if it's literal '.' then take a tile from the hand,
+#   else keep the tile from the $re_str
+                        #$found{$key} = _find($actual_letters, $length, $re_str);
+(my $was_board = $record) =~ s{/}{}g;
+$found{$key} = _find($letters, $length, $re_str, $was_board);
                     }
 
-                    # now score each of the found words
-                    for my $tryin (@{$found{"$actual_letters,$_"}}) {
+                    # now score each of the found words crossing the main word
+                    for my $tryin (@{$found{$key}}) {
 
                         my @values = @{ $tryin->{values} };
                         my $index  = index ($record, "/");      # where the first tile I'm trying is located
@@ -385,36 +449,36 @@ sub _mathwork {
                         my $tiles_this_word = join '', @{ $tryin->{tiles_this_word} || [''] };
                         # cycle thru each of the the crossing-words (vertical words that intersect the horizontal word I'm laying down)
                         for my $c ($col..$col + $length - 1 - $index) {
-                            $str = '';
+                            my $cross_str = '';
 
                             # build up the full column-string one character at a time (vertical slice of the board)
                             # this will allow us to check for words that cross with our attempted word
                             for my $r (0.._max_row) {
                                 if ($r == $row) {       # if it's the current row, use the replacement character rather than the '.' that's in the real board
-                                    $str    .= substr ($record, $index, 1);
+                                    $cross_str    .= substr ($record, $index, 1);
                                     $replace = substr ($trying, $index, 1);     # this is the character from $trying that is taking the place of the slash for this column
                                     $v       = $values[$index++];
                                 }
                                 else {                  # otherwise use the character from the real board
-                                    $str .= $onboard[$r][$c];
+                                    $cross_str .= $onboard[$r][$c];
                                 }
                             } # r row loop
 
                             # find the sub-word of the column-string that is bounded by the array ends or a . on one side or another, and look for the
                             #   subword that contains the / (ie, the row where I'm laying down the new tiles
-                            for (split /\./, $str) {
-                                next unless /\//;                       # if this sub-word doesn't contain the new-tile row, continue
-                                next if (length($_) == 1);              # if this sub-word contains the new-tile row, but is only one character long, don't score the crossing-word for this column
+                            for my $col_piece (split /\./, $cross_str) {
+                                next unless $col_piece =~ m{/};         # if this sub-word doesn't contain the new-tile row, continue
+                                next if (length($col_piece) == 1);      # if this sub-word contains the new-tile row, but is only one character long, don't score the crossing-word for this column
                                 # if it makes it here, I actually found that I'm making a vertical word when I lay down my horizontal tiles, so start scoring
                                 my $t_score = 0;                        # "t" means temporary; in this block, t_score holds the score for the tiles already laid down in the vertical word
-                                my $vstart = $row - index($_, "/");     # the current vertical word ($_) starts at the board's row=$vstart
+                                my $vstart = $row - index($col_piece, "/");     # the current vertical word ($col_piece) starts at the board's row=$vstart
 
                                 # loop thru the already existing tiles in the crossing-word; add in their non-bonus score if they are not wild
                                 #   (non-bonus, because they were laid down in a previous turn, so their bonus has been used up)
-                                while (/(\w)/g) {
+                                while ($col_piece =~ /(\w)/g) {
                                     # BUGFIX (pcj): use vrow as the row of the current letter of the vertical word
                                     #   if it's a wild, 0 points, else add its non-bonus value
-                                    my $vrow = $vstart + pos() - 1;    # vstart is the start of the vertical word; pos is the 1-based position in the vertical word; -1 adjusts for the 1-based to get the row of the current \w character $1
+                                    my $vrow = $vstart + pos($col_piece) - 1;    # vstart is the start of the vertical word; pos is the 1-based position in the vertical word; -1 adjusts for the 1-based to get the row of the current \w character $1
                                     my ($wr,$wc) = ($rotate) ? ($vrow, $c) : ($c, $vrow);  # swap row and column for wilds[][] array, since wilds[][] wasn't transposed.
 
                                     unless ( $wilds[$vrow][$c] ) {
@@ -423,11 +487,11 @@ sub _mathwork {
 
 
                                 }; # end of vertical-word's real-letter score
-                                s/\//$replace/;
+                                $col_piece =~ s{}{$replace};    # v0.042_001: remove leaning matchsticks
 
                                 # if my vertical cross-word for this column is a valid word, continue scoring by adding the score for the new tile in this column,
                                 #   including bonuses activated by the new tile
-                                if ($valid{$_}) {
+                                if ($valid{$col_piece}) {
                                     if ($bonus[$row][$c] eq "TL") {
                                         $score += $t_score + $v * 3;
                                     }
@@ -466,7 +530,7 @@ sub _mathwork {
                         my $cc = 0;
 
                         # this is the scoring for the word I just laid down
-                        for (split //, $trying) {
+                        for my $letter_to_score (split //, $trying) {
                             if ($onboard[$row][$col+$col_index] eq '.') {           # if new tile
                                 if ($bonus[$row][$col+$col_index] eq "TL") {
                                     $t_score += $values[$cc] * 3;
@@ -497,7 +561,7 @@ sub _mathwork {
                                 my ($wr, $wc) = ($row, $col + $col_index);
                                 ($wc, $wr) = ($wr, $wc) if $rotate; # swap row and column for wilds[][] array, since wilds[][] wasn't transposed.
                                 unless ($wilds[$wr][$wc]) {
-                                    $t_score += $values{$_};
+                                    $t_score += $values{$letter_to_score };
                                 }
                             } # end else already a tile there
                             $cc ++;
