@@ -48,7 +48,7 @@ has added various features and made bug fixes.
 
 <div>
     <a href="https://metacpan.org/pod/Games::Literati"><img src="https://img.shields.io/cpan/v/Games-Literati.svg?colorB=00CC00" alt="" title="metacpan"></a>
-    <a href="http://matrix.cpantesters.org/?dist=Games-Literati"><img src="http://cpants.cpanauthors.org/dist/Games-Literati.png" alt="" title="cpan testers"></a>
+    <a href="https://matrix.cpantesters.org/?dist=Games-Literati"><img src="https://cpants.cpanauthors.org/dist/Games-Literati.png" alt="" title="cpan testers"></a>
     <a href="https://github.com/pryrt/Games-Literati/releases"><img src="https://img.shields.io/github/release/pryrt/Games-Literati.svg" alt="" title="github release"></a>
     <a href="https://github.com/pryrt/Games-Literati/issues"><img src="https://img.shields.io/github/issues/pryrt/Games-Literati.svg" alt="" title="issues"></a>
     <a href="https://ci.appveyor.com/project/pryrt/Games-Literati"><img src="https://ci.appveyor.com/api/projects/status/6gv0lnwj1t6yaykp/branch/master?svg=true" alt="" title="test coverage"></a>
